@@ -34,19 +34,11 @@
     {{-- Stats --}}
     <div class="lec-stats">
         <div class="lec-stat-card">
-<<<<<<< HEAD
             <span class="lec-stat-num">{{ $published }}</span>
             <span class="lec-stat-label">Quizzes published</span>
         </div>
         <div class="lec-stat-card">
             <span class="lec-stat-num">{{$drafts }}</span>
-=======
-            <span class="lec-stat-num">0</span>
-            <span class="lec-stat-label">Quizzes published</span>
-        </div>
-        <div class="lec-stat-card">
-            <span class="lec-stat-num">0</span>
->>>>>>> 34c06f46b7ac754baa71d7207a6dba2467144943
             <span class="lec-stat-label">Drafts</span>
         </div>
         <div class="lec-stat-card">
@@ -84,7 +76,6 @@
     display: flex; align-items: center; justify-content: space-between;
     margin-bottom: 1.25rem; gap: 1rem; flex-wrap: wrap;
 }
-<<<<<<< HEAD
 .lec-alert-success {
     background: #dcfce7;
     color: #166534;
@@ -95,8 +86,6 @@
     font-weight: 600;
     margin-bottom: 1.25rem;
 }
-=======
->>>>>>> 34c06f46b7ac754baa71d7207a6dba2467144943
 .lec-greeting { font-size: 0.85rem; color: rgba(255,255,255,0.75); margin-bottom: 0.1rem; }
 .lec-name { font-size: 1.4rem; font-weight: 700; color: white; }
 .lec-role-pill { background: rgba(255,255,255,0.2); color: white; font-size: 0.75rem; font-weight: 600; padding: 2px 10px; border-radius: 999px; display: inline-block; margin-top: 0.4rem; }
