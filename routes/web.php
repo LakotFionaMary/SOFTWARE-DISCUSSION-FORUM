@@ -31,22 +31,14 @@ Route::post('/logout', [AuthController::class, 'logout'])
 
 // Student dashboard
 
-<<<<<<< HEAD
 Route::middleware(['auth','role:student'])->group(function () {
-=======
-Route::middleware(['auth'])->group(function () {
->>>>>>> 34c06f46b7ac754baa71d7207a6dba2467144943
       Route::get('/quizzes',                    [QuizController::class, 'studentIndex'])->name('quizzes');
     Route::get('/quizzes/{id}/attempt',       [QuizController::class, 'attempt'])    ->name('quizzes.attempt');
     Route::post('/quizzes/{id}/submit',       [QuizController::class, 'submit'])     ->name('quizzes.submit');
     Route::get('/quizzes/{quizId}/result/{attemptId}', [QuizController::class, 'result'])->name('quizzes.result');
 
    Route::get('/student/dashboard', fn() => view('dashboards.student'));
-<<<<<<< HEAD
    // Route::get('/quizzes',       fn() => view('quiz'))      ->name('quizzes');  deleted
-=======
-    Route::get('/quizzes',       fn() => view('quiz'))      ->name('quizzes');
->>>>>>> 34c06f46b7ac754baa71d7207a6dba2467144943
     Route::get('/notifications', fn() => view('notifications'))->name('notifications');
     Route::get('/profile',       fn() => view('profile'))      ->name('profile');
 });
@@ -54,12 +46,9 @@ Route::middleware(['auth'])->group(function () {
 // Lecturer dashboard
 Route::middleware(['auth', 'role:lecturer'])->group(function () {
     Route::get('/lecturer/dashboard', fn() => view('dashboards.lecturer'));
-<<<<<<< HEAD
      Route::get('/lecturer/dashboard', [LecturerController::class, 'index']);      //added
     Route::get('/lecturer/quizzes/create', fn() => view('lecturer.create-quiz'));  //added
     Route::post('/lecturer/quizzes', [QuizController::class, 'store']);            //added
-=======
->>>>>>> 34c06f46b7ac754baa71d7207a6dba2467144943
 });
 
 // ── Lecturer routes ─────────────────────────────────────
@@ -67,11 +56,7 @@ Route::middleware(['auth'])->prefix('lecturer')->group(function () {
 
     // Lecturer dashboard
     Route::get('/lecturer/dashboard', fn() => view('dashboards.lecturer'))
-<<<<<<< HEAD
         ->name('dashboards.lecturer');
-=======
-        ->name('lecturer.dashboard');
->>>>>>> 34c06f46b7ac754baa71d7207a6dba2467144943
 
     // Show quiz creation form
     Route::get('/quizzes/create', fn() => view('quiz-config'))
@@ -123,13 +108,6 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
 });
 
 
-<<<<<<< HEAD
-
-=======
-Route::get('/quizzes', function () {
-        return view('quiz');
-    })->name('quizzes');
->>>>>>> 34c06f46b7ac754baa71d7207a6dba2467144943
  
     Route::get('/notifications', function () {
         return view('notifications');
