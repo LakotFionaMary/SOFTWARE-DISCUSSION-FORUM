@@ -150,4 +150,12 @@
 .lec-empty-quizzes { display: flex; flex-direction: column; align-items: center; gap: 0.6rem; padding: 2rem; color: var(--text-muted); font-size: 0.875rem; text-align: center; }
 .lec-empty-quizzes a { color: var(--brand); font-weight: 600; text-decoration: none; }
 .lec-empty-quizzes a:hover { text-decoration: underline; }
+
+.lec-grading-card { margin-top: 1.25rem; }
+.lec-grade-stats { display: grid; grid-template-columns: repeat(3,1fr); gap: 1rem; margin-bottom: 1.1rem; }
+@media (max-width: 640px) { .lec-grade-stats { grid-template-columns: 1fr; } }
+.lec-grade-stat { background: #f8fafc; border: 1px solid var(--border); border-radius: 10px; padding: 0.9rem; text-align: center; }
+.lec-grade-stat-num { display: block; font-size: 1.3rem; font-weight: 700; color: var(--brand); }
+.lec-grade-stat-label { font-size: 0.72rem; color: var(--text-muted); font-weight: 500; }
+    
 </style>
