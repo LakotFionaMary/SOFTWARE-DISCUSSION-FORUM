@@ -116,6 +116,26 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
     Route::get('/profile', function () {
         return view('profile');
     })->name('profile');
+
+// Show the grading & participation page (rules + student scores together)
+Route::get('/grading', [GradingController::class, 'index'])
+    ->name('lecturer.grading.index');
  
+// Scoring criteria (the rules)
+Route::post('/grading/criteria', [GradingController::class, 'storeCriteria'])
+    ->name('lecturer.grading.criteria.store');
+ 
+Route::get('/grading/criteria/{criteria}/edit', [GradingController::class, 'editCriteria'])
+    ->name('lecturer.grading.criteria.edit');
+ 
+Route::put('/grading/criteria/{criteria}', [GradingController::class, 'updateCriteria'])
+    ->name('lecturer.grading.criteria.update');
+ 
+Route::delete('/grading/criteria/{criteria}', [GradingController::class, 'destroyCriteria'])
+    ->name('lecturer.grading.criteria.destroy');
+ 
+// Recalculate participation scores (reads criteria, writes participation_scores)
+Route::post('/grading/recalculate', [GradingController::class, 'recalculate'])
+    ->name('lecturer.grading.recalculate');
 
  
