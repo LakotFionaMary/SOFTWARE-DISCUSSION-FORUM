@@ -63,6 +63,35 @@
             <p>No quizzes yet. <a href="/lecturer/quizzes/create">Create your first quiz →</a></p>
         </div>
     </div>
+        {{-- Grading & Participation summary card--}}
+    <div class="lec-card lec-grading-card">
+        <div class="lec-card-header">
+            <h2 class="lec-card-title">Grading &amp; participation</h2>
+            <a href="/lecturer/grading" class="lec-link">Open full module →</a>
+        </div>
+
+    {{-- Quick stats --}}
+    <div class="lec-grade-stats">
+        <div class="lec-grade-stat">
+            <span class="lec-grade-stat-num">0</span>
+            <span class="lec-grade-stat-label">Scoring rules</span>
+        </div>
+        <div class="lec-grade-stat">
+            <span class="lec-grade-stat-num">0</span>
+            <span class="lec-grade-stat-label">Students scored</span>
+        </div>
+        <div class="lec-grade-stat">
+            <span class="lec-grade-stat-num">—</span>
+            <span class="lec-grade-stat-label">Avg. participation</span>
+        </div>
+    </div>
+
+    {{-- Empty state, mirrors the "My quizzes" empty state --}}
+    <div class="lec-empty-quizzes">
+        <svg width="40" height="40" fill="none" stroke="#94a3b8" stroke-width="1.4" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+        <p>No scoring rules yet. <a href="/lecturer/grading/criteria/create">Set up a marking rule →</a></p>
+    </div>
+</div>
 
 </div>
 @endsection
@@ -121,4 +150,12 @@
 .lec-empty-quizzes { display: flex; flex-direction: column; align-items: center; gap: 0.6rem; padding: 2rem; color: var(--text-muted); font-size: 0.875rem; text-align: center; }
 .lec-empty-quizzes a { color: var(--brand); font-weight: 600; text-decoration: none; }
 .lec-empty-quizzes a:hover { text-decoration: underline; }
+
+.lec-grading-card { margin-top: 1.25rem; }
+.lec-grade-stats { display: grid; grid-template-columns: repeat(3,1fr); gap: 1rem; margin-bottom: 1.1rem; }
+@media (max-width: 640px) { .lec-grade-stats { grid-template-columns: 1fr; } }
+.lec-grade-stat { background: #f8fafc; border: 1px solid var(--border); border-radius: 10px; padding: 0.9rem; text-align: center; }
+.lec-grade-stat-num { display: block; font-size: 1.3rem; font-weight: 700; color: var(--brand); }
+.lec-grade-stat-label { font-size: 0.72rem; color: var(--text-muted); font-weight: 500; }
+    
 </style>
