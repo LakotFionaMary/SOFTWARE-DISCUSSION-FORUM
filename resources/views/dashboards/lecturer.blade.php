@@ -63,6 +63,35 @@
             <p>No quizzes yet. <a href="/lecturer/quizzes/create">Create your first quiz →</a></p>
         </div>
     </div>
+        {{-- Grading & Participation summary card--}}
+    <div class="lec-card lec-grading-card">
+        <div class="lec-card-header">
+            <h2 class="lec-card-title">Grading &amp; participation</h2>
+            <a href="/lecturer/grading" class="lec-link">Open full module →</a>
+        </div>
+
+    {{-- Quick stats --}}
+    <div class="lec-grade-stats">
+        <div class="lec-grade-stat">
+            <span class="lec-grade-stat-num">0</span>
+            <span class="lec-grade-stat-label">Scoring rules</span>
+        </div>
+        <div class="lec-grade-stat">
+            <span class="lec-grade-stat-num">0</span>
+            <span class="lec-grade-stat-label">Students scored</span>
+        </div>
+        <div class="lec-grade-stat">
+            <span class="lec-grade-stat-num">—</span>
+            <span class="lec-grade-stat-label">Avg. participation</span>
+        </div>
+    </div>
+
+    {{-- Empty state, mirrors the "My quizzes" empty state --}}
+    <div class="lec-empty-quizzes">
+        <svg width="40" height="40" fill="none" stroke="#94a3b8" stroke-width="1.4" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+        <p>No scoring rules yet. <a href="/lecturer/grading/criteria/create">Set up a marking rule →</a></p>
+    </div>
+</div>
 
 </div>
 @endsection
