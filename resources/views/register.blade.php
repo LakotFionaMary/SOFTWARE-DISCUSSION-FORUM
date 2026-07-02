@@ -104,12 +104,12 @@
         @csrf
 
         <div class="form-group">
-            <label for="name">Full Name</label>
+            <label for="full_name">Full Name</label>
             <input
                 type="text"
-                id="name"
-                name="name"
-                value="{{ old('name') }}"
+                id="full_name"
+                name="full_name"
+                value="{{ old('full_name') }}"
                 placeholder="John Doe"
                 required
             >
