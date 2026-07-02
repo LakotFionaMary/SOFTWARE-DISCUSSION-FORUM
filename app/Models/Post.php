@@ -25,7 +25,7 @@ class Post extends Model
         'is_flagged' => 'boolean'
     ];
 
-    public $timestamps = false;
+
 
     /*
     |--------------------------------------------------------------------------
