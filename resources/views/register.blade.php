@@ -190,7 +190,7 @@
     }
 
     // If validation failed and form was submitted, skip the modal
-    @if($errors->any() || old('name'))
+    @if($errors->any() || old('full_name'))
         document.getElementById('rules-modal').style.display = 'none';
         document.getElementById('register-form').style.display = 'block';
     @endif
