@@ -8,12 +8,10 @@
 
 <!-- LECTURER SCREEN CONTROLS -->
 <div id="lecturerControls" style="display: none;">
-
-
-    <!-- Simple Quiz Creation Card -->
+    <!-- Quiz Creation Card -->
     <div class="card" style="border-left: 4px solid #e11d48; margin-bottom: 20px;">
         <h3>⚙️ Create a New Quiz</h3>
-        <p class="muted">Schedule a quiz with one initial multiple-choice question for your group.</p>
+        <p class="muted">Schedule a quiz and build as many multiple-choice questions as you need.</p>
         <button class="btn btn-secondary" id="toggleQuizFormBtn" type="button">Open Quiz Form</button>
 
         <form id="quizConfigForm" style="display: none; margin-top: 15px; border-top: 1px solid #e2e8f0; padding-top: 15px;">
@@ -38,19 +36,21 @@
                 <input type="number" id="durationMinutes" placeholder="30" required style="width: 100%; padding: 6px;">
             </div>
 
-            <h4 style="margin-top: 15px; color:#e11d48;">Question Details</h4>
-            <div style="background: #f8fafc; padding: 10px; border-radius: 4px;">
-                <input type="text" id="qText" placeholder="Enter question..." required style="width: 100%; margin-bottom: 8px; padding: 6px;">
-                <input type="text" id="qOptA" placeholder="Option A" required style="width: 100%; margin-bottom: 4px; padding: 6px;">
-                <input type="text" id="qOptB" placeholder="Option B" required style="width: 100%; margin-bottom: 4px; padding: 6px;">
-                <input type="text" id="qOptC" placeholder="Option C" required style="width: 100%; margin-bottom: 4px; padding: 6px;">
-                <input type="text" id="qOptD" placeholder="Option D" required style="width: 100%; margin-bottom: 8px; padding: 6px;">
-                <label>Correct Answer Option:</label>
-                <select id="qCorrect"><option>A</option><option>B</option><option>C</option><option>D</option></select>
+            <div style="display:flex; align-items:center; justify-content:space-between; margin-top: 15px;">
+                <h4 style="color:#e11d48; margin:0;">Question Matrix</h4>
+                <button class="btn btn-secondary" type="button" id="addQuestionBtn">+ Add question</button>
             </div>
+
+            <!-- Question rows are injected here by JS. Each row is a self-contained
+                 block with its own inputs, so there is no upper limit on how many
+                 questions a lecturer can add. -->
+            <div id="questionMatrix"></div>
 
             <button class="btn" type="submit" style="background-color: #e11d48; color: white; width: 100%; margin-top: 15px;">Save & Publish Quiz</button>
         </form>
+
+
+
     </div>
 
     <!-- Lecturer's own quizzes: publish/close + view results -->
@@ -370,6 +370,115 @@
             alert('Failed to save. Make sure your start time format is HH:MM (e.g. 14:00)');
         }
     });
+
+        // --- QUESTION MATRIX ---------------------------------------------------
+    // Replaces the old single hardcoded question block. Each call appends a
+    // new independent row; rows are identified by a counter (not reused ids,
+    // since HTML ids must be unique per page) so any number of questions can
+    // exist on the form at once.
+    let questionRowCount = 0;
+
+    function addQuestionRow() {
+        questionRowCount++;
+        const rowId = `qrow-${questionRowCount}`;
+        const wrapper = document.createElement('div');
+        wrapper.className = 'question-row';
+        wrapper.id = rowId;
+        wrapper.style.cssText = 'background:#f8fafc; padding:10px; border-radius:4px; margin-top:10px; position:relative;';
+        wrapper.innerHTML = `
+            <button type="button" class="removeQuestionBtn" style="position:absolute; top:8px; right:8px; background:none; border:none; color:#e11d48; cursor:pointer; font-weight:bold;">✕ remove</button>
+            <div class="muted" style="margin-bottom:6px;">Question ${questionRowCount}</div>
+            <input type="text" class="qText" placeholder="Enter question..." required style="width: 100%; margin-bottom: 8px; padding: 6px;">
+            <input type="text" class="qOptA" placeholder="Option A" required style="width: 100%; margin-bottom: 4px; padding: 6px;">
+            <input type="text" class="qOptB" placeholder="Option B" required style="width: 100%; margin-bottom: 4px; padding: 6px;">
+            <input type="text" class="qOptC" placeholder="Option C" required style="width: 100%; margin-bottom: 4px; padding: 6px;">
+            <input type="text" class="qOptD" placeholder="Option D" required style="width: 100%; margin-bottom: 8px; padding: 6px;">
+            <label>Correct Answer Option:</label>
+            <select class="qCorrect"><option>A</option><option>B</option><option>C</option><option>D</option></select>
+            <label style="margin-left:10px;">Marks:</label>
+            <input type="number" class="qMarks" value="1" min="1" style="width:60px; padding:4px;">
+        `;
+        document.getElementById('questionMatrix').appendChild(wrapper);
+
+        wrapper.querySelector('.removeQuestionBtn').addEventListener('click', () => {
+            // Always keep at least one row - a quiz needs at least one question.
+            if (document.querySelectorAll('.question-row').length > 1) {
+                wrapper.remove();
+            } else {
+                alert('A quiz needs at least one question.');
+            }
+        });
+    }
+
+    document.getElementById('addQuestionBtn').addEventListener('click', addQuestionRow);
+
+    function resetQuestionMatrix() {
+        document.getElementById('questionMatrix').innerHTML = '';
+        questionRowCount = 0;
+        addQuestionRow(); // start every fresh form with one row
+    }
+
+    resetQuestionMatrix();
+
+    document.getElementById('quizConfigForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const groupId = document.getElementById('quizGroupId').value;
+
+        // Collect every row currently on the page instead of reading one
+        // fixed set of ids - this is what actually enables "multiple
+        // questions": the payload's questions array now has one entry per
+        // row the lecturer added.
+        const questions = Array.from(document.querySelectorAll('.question-row')).map(row => ({
+            question_text: row.querySelector('.qText').value,
+            option_a: row.querySelector('.qOptA').value,
+            option_b: row.querySelector('.qOptB').value,
+            option_c: row.querySelector('.qOptC').value,
+            option_d: row.querySelector('.qOptD').value,
+            correct_option: row.querySelector('.qCorrect').value,
+            marks: parseInt(row.querySelector('.qMarks').value) || 1,
+        }));
+
+        
+
+        const payload = {
+            title: document.getElementById('quizTitle').value,
+            scheduled_date: document.getElementById('scheduledDate').value,
+            start_time: document.getElementById('startTime').value,
+            duration_minutes: parseInt(document.getElementById('durationMinutes').value),
+            questions,
+        };
+
+        const res = await api(`/groups/${groupId}/quizzes`, { method: 'POST', body: payload });
+        if (res && !res.errors) {
+            alert(`Quiz scheduled with ${questions.length} question(s). It will open automatically at the scheduled time.`);
+            e.target.reset();
+            resetQuestionMatrix();
+            document.getElementById('quizConfigForm').style.display = 'none';
+        } else {
+            alert('Failed to save. Check that every question row is filled in and start time is HH:MM (e.g. 14:00).');
+        }
+    });
+
+async function loadQuizzes(groups) {
+    const container = document.getElementById('quizzes');
+    if (!groups || groups.length === 0) {
+        container.innerHTML = 'No quizzes yet.';
+        return;
+    }
+
+    const results = await Promise.all(
+        groups.map(g => api(`/groups/${g.group_id}/quizzes`))
+    );
+
+    const quizzes = results.flatMap(r => (r && (r.data || r)) || []);
+
+    container.innerHTML = quizzes.map(q => `
+        <div class="card">
+            <strong><a href="/quizzes/${q.quiz_id}">${q.title}</a></strong>
+            <div class="muted">Status: ${q.status}</div>
+        </div>
+    `).join('') || 'No quizzes yet.';
+}
 
     async function init() {
         await loadMe();
