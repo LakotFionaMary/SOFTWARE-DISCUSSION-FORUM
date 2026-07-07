@@ -31,10 +31,23 @@
             justify-content: space-between;
             align-items: center;
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            flex-wrap: wrap;
+            gap: 8px;
         }
         header.topbar .brand { font-weight: 700; letter-spacing: .04em; text-transform: uppercase; font-size: 15px; }
-        header.topbar nav a { color: var(--paper); text-decoration: none; margin-left: 18px; font-size: 14px; opacity: .85; }
-        header.topbar nav a:hover { opacity: 1; text-decoration: underline; }
+        header.topbar nav { display: flex; align-items: center; flex-wrap: wrap; }
+        header.topbar nav a {
+            color: var(--paper);
+            text-decoration: none;
+            margin-left: 18px;
+            font-size: 14px;
+            opacity: .85;
+            padding: 4px 2px;
+            border-bottom: 2px solid transparent;
+            transition: opacity 0.15s, border-color 0.15s;
+        }
+        header.topbar nav a:hover { opacity: 1; }
+        header.topbar nav a.active { opacity: 1; border-bottom-color: var(--paper); font-weight: 600; }
         main { max-width: 880px; margin: 0 auto; padding: 32px 24px 80px; }
         h1, h2, h3 { font-family: 'Iowan Old Style', Georgia, serif; color: var(--ink); }
         .card {
@@ -81,7 +94,8 @@
     <header class="topbar">
         <div class="brand">Smart Discussion Forum</div>
         <nav>
-            <a href="{{ route('dashboard') }}">Dashboard</a>
+            <a href="{{ route('dashboard') }}" class="{{ request()->is('dashboard') ? 'active' : '' }}">Dashboard</a>
+            <a href="/profile" class="{{ request()->is('profile') ? 'active' : '' }}">My Profile</a>
             <a href="#" id="logoutLink">Log out</a>
         </nav>
     </header>

@@ -17,6 +17,7 @@ use App\Http\Controllers\Api\SyncController;
 use App\Http\Controllers\Api\TopicController;
 use App\Http\Controllers\Api\UserController;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Api\ProfileController;
 
 /*
 |--------------------------------------------------------------------------
@@ -37,6 +38,9 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/me', [AuthController::class, 'me']);
+    Route::patch('/me', [ProfileController::class, 'update']);
+    Route::post('/me/profile-picture', [ProfileController::class, 'updatePicture']);
+  Route::get('/users/{userId}/profile', [ProfileController::class, 'show']);
 
     // -------------------------------------------------------------
     // 5.1 Role Management (Administrator only)
