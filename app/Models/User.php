@@ -29,6 +29,11 @@ class User extends Authenticatable
         'last_active_at',
         'rules_accepted',
         'rules_accepted_at',
+        'bio',
+        'phone',
+        'phone_public',
+        'profile_picture',
+        'department',
     ];
 
     protected $hidden = [
@@ -40,6 +45,7 @@ class User extends Authenticatable
         'last_active_at' => 'datetime',
         'rules_accepted_at' => 'datetime',
         'rules_accepted' => 'boolean',
+        'phone_public' => 'boolean',
     ];
 
     // Laravel's auth system expects getAuthPassword(); we store the hash in password_hash.
