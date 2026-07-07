@@ -1,2 +1,3 @@
-node_modules
-/vendor
+ cc2a129f004bb8e8f93894a88f20b4deb925ccdf
+/storage/framework/views/*
+/storage/logs/*
