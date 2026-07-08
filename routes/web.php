@@ -28,3 +28,5 @@ Route::view('/profile', 'profile.edit')->name('profile.edit');
 Route::get('/group-rules', function () {
     return view('grouprules');
 });
+
+Route::view('/admin/admindashboard', 'admin.admindashboard')->name('admin.admindashboard');

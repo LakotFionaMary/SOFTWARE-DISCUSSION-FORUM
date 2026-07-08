@@ -85,7 +85,11 @@ Route::middleware('auth:sanctum')->group(function () {
     // -------------------------------------------------------------
     // 5.2 Moderation and Inactivity Management Module (admin/lecturer)
     // -------------------------------------------------------------
+    Route::get('/moderation/warnings', [ModerationController::class, 'warningsIndex']);
+    Route::post('/moderation/warnings/{warning}/resolve', [ModerationController::class, 'resolveWarning']);
+
     Route::middleware('role:Administrator,Lecturer')->group(function () {
+        Route::get('/moderation/warnings', [ModerationController::class, 'warningsIndex']);
         Route::post('/groups/{group}/moderation/scan-inactivity', [ModerationController::class, 'scanInactivity']);
         Route::post('/moderation/warnings/{warning}/resolve', [ModerationController::class, 'resolveWarning']);
         Route::post('/groups/{group}/blacklist/{user}', [ModerationController::class, 'blacklistUser']);
