@@ -25,6 +25,12 @@ class PostController extends Controller
 
     public function index(Request $request, Topic $topic)
     {
+        //pk addded
+         if (! $request->user()->isMemberOf($topic->group_id)) {
+            return response()->json(['message' => 'You must be a member of this topic\'s group to view its posts.'], 403);
+        }
+
+
         $userId = $request->user()->user_id;
 
         // Selective communication: hide posts that exclude the requesting user.
@@ -47,6 +53,12 @@ class PostController extends Controller
         ]);
 
         $author = $request->user();
+        // pk added
+          if (! $author->isMemberOf($topic->group_id)) {
+            return response()->json(['message' => 'You must be a member of this topic\'s group to post here.'], 403);
+        }
+
+
 
         if ($author->isBlacklistedIn($topic->group_id)) {
             return response()->json(['message' => 'You are blacklisted from posting in this group.'], 403);

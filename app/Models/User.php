@@ -141,4 +141,13 @@ class User extends Authenticatable
             ->where('end_date', '>', now())
             ->exists();
     }
+    public function isMemberOf(int $groupId): bool
+{
+    if ($this->hasRole('Administrator')) {
+        return true;
+    }
+
+    return $this->memberships()->where('group_id', $groupId)->exists();
+}
+
 }
