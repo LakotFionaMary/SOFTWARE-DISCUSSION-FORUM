@@ -1,4 +1,22 @@
- cc2a129f004bb8e8f93894a88f20b4deb925ccdf
+/vendor
+/node_modules
+.env
+/storage/*.key
+/public/storage
+/public/hot
+.phpunit.result.cache
 /storage/framework/views/*
 /storage/logs/*
-/vendor/
+
+# ML / Python
+venv/
+env/
+.venv/
+__pycache__/
+*.pyc
+*.pkl
+*.joblib
+*.h5
+*.model
+storage/framework/sessions/*
+*.log
