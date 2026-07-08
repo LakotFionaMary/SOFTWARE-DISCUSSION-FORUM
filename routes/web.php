@@ -20,3 +20,8 @@ Route::view('/admin/statistics/{group}', 'admin.statistics')->name('admin.statis
 Route::view('/groups/{group}/gradebook', 'groups.gradebook')->name('groups.gradebook');
 
 Route::view('/profile', 'profile.edit')->name('profile.edit');
+
+/* group rules*/
+Route::get('/group-rules', function () {
+    return view('grouprules');
+});

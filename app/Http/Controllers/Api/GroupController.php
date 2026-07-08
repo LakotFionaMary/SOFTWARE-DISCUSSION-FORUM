@@ -16,9 +16,18 @@ class GroupController extends Controller
 {
     public function index(Request $request)
     {
-        return response()->json(
-            Group::withCount(['members', 'topics'])->paginate(20)
-        );
+        $groups = Group::withCount(['members', 'topics'])->paginate(20);
+        // Let the dashboard tell members apart from groups the student
+        // hasn't joined yet, since only members may open a group's topics.
+        $userId = $request->user()->user_id;
+        $groups->getCollection()->transform(function (Group $group) use ($request, $userId) {
+            $group->is_member = $request->user()->hasRole('Administrator')
+                || $group->members()->where('users.user_id', $userId)->exists();
+
+            return $group;
+        });
+
+        return response()->json($groups );
     }
 
     public function store(Request $request)
@@ -60,6 +69,19 @@ class GroupController extends Controller
     public function show(Group $group)
     {
         return response()->json($group->load(['admin', 'topics' => fn ($q) => $q->latest()->limit(10)]));
+    }
+
+    public function joining(Group $group)
+   {
+    $user = auth()->user();
+
+    $user->groups()->syncWithoutDetaching([
+        $group->id
+    ]);
+
+    return response()->json([
+        'message' => 'Joined group successfully'
+    ]);
     }
 
     /** Join a group; requires the member to accept the group's rules (SDD "Membership" table). */

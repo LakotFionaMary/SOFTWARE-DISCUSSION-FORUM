@@ -3,6 +3,19 @@
 @section('title', 'Dashboard')
 
 @section('content')
+<style> 
+.rules-check {    margin-top: 15px;    margin-bottom: 15px;}
+
+.rules-check label {
+display: flex;    align-items: center;    gap: 10px;    cursor: pointer;    font-size: 15px;}
+
+.rules-check input[type="checkbox"] {    width: 18px;    height: 18px;    cursor: pointer;}
+
+.rules-check a {    color: #2563eb;    text-decoration: underline;    font-weight: 500;}
+
+.rules-check a:hover {    color: #1d4ed8;}
+</style>
+
 <div class="eyebrow">Discussion Dashboard</div>
 <h1 id="welcome">Loading your dashboard…</h1>
 
@@ -84,6 +97,32 @@
     </div>
 <h2>Your groups</h2>
 <div id="groups"></div>
+
+<!-- Join Group Card -->
+
+<div class="card" style="border-left: 4px solid #16a34a; margin-bottom: 20px;">
+    <h3>Join a Course Group</h3>
+
+    <form id="joinGroupForm">
+        <select id="joinGroupId" required style="width:100%; padding:8px;">
+            <option value="">Select a group</option>
+        </select>
+
+       <div class="rules-check">
+    <label>
+        <input type="checkbox" id="rulesAccepted">
+        <span>
+            I agree to the 
+            <a href="/group-rules" target="_blank">group rules</a>
+        </span>
+    </label>
+</div>
+
+        <button class="btn" type="submit" style="margin-top:10px;">
+            Join Group
+        </button>
+    </form>
+</div>
 
 <h2>Recommended topics</h2>
 <div id="recommendations" class="card muted">Loading recommendations…</div>
@@ -325,6 +364,23 @@
         `).join('') || 'No notifications yet.';
     }
 
+    async function loadAvailableGroups() {
+    const data = await api('/groups');
+
+    const groups = data.data || data || [];
+
+    const dropdown = document.getElementById('joinGroupId');
+
+    dropdown.innerHTML = `
+        <option value="">Select a group</option>
+        ${groups.map(group => `
+            <option value="${group.group_id}">
+                ${group.name}
+            </option>
+        `).join('')}
+    `;
+}
+
     document.getElementById('createGroupForm').addEventListener('submit', async (e) => {
         e.preventDefault();
         await api('/groups', {
@@ -334,6 +390,34 @@
         loadGroups();
         e.target.reset();
     });
+
+    <!--- join group---!>
+
+   document.getElementById('joinGroupForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const groupId = document.getElementById('joinGroupId').value;
+    const accepted = document.getElementById('rulesAccepted').checked;
+
+    if (!accepted) {
+        alert('Please accept the group rules before joining.');
+        return;
+    }
+
+    const response = await api(`/groups/${groupId}/join`, {
+        method: 'POST',
+        body: {
+            rules_accepted: true
+        }
+    });
+
+    if (response) {
+        alert('Joined group successfully!');
+        loadGroups();
+        loadAvailableGroups();
+        e.target.reset();
+    }
+});
 
     document.getElementById('toggleQuizFormBtn').addEventListener('click', () => {
         const form = document.getElementById('quizConfigForm');
@@ -483,6 +567,7 @@ async function loadQuizzes(groups) {
     async function init() {
         await loadMe();
         await loadGroups();
+        await loadAvailableGroups();
 
         if (currentRole === 'lecturer' || currentRole === 'administrator') {
             loadLecturerQuizzes();

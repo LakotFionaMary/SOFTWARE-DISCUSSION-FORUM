@@ -27,6 +27,11 @@ class ReplyController extends Controller
 
         $author = $request->user();
 
+        // pk added--------
+          if (! $author->isMemberOf($post->topic->group_id)) {
+            return response()->json(['message' => 'You must be a member of this post\'s group to reply.'], 403);
+        }
+
         if ($author->isBlacklistedIn($post->topic->group_id)) {
             return response()->json(['message' => 'You are blacklisted from replying in this group.'], 403);
         }
