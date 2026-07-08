@@ -9,87 +9,81 @@
 <!-- LECTURER SCREEN CONTROLS -->
 <div id="lecturerControls" style="display: none;">
 
-
     <!-- Simple Quiz Creation Card -->
-    <div class="card" style="border-left: 4px solid #e11d48; margin-bottom: 20px;">
-        <h3>⚙️ Create a New Quiz</h3>
+    <div class="card panel-lecturer">
+        <h3>Create a new quiz</h3>
         <p class="muted">Schedule a quiz with one initial multiple-choice question for your group.</p>
-        <button class="btn btn-secondary" id="toggleQuizFormBtn" type="button">Open Quiz Form</button>
+        <button class="btn secondary" id="toggleQuizFormBtn" type="button">Open quiz form</button>
 
-        <form id="quizConfigForm" style="display: none; margin-top: 15px; border-top: 1px solid #e2e8f0; padding-top: 15px;">
-            <div style="margin-bottom: 10px;">
-                <label>Target Group:</label>
-                <select id="quizGroupId" required style="width: 100%; padding: 6px;"></select>
-            </div>
-            <div style="margin-bottom: 10px;">
-                <label>Quiz Title:</label>
-                <input type="text" id="quizTitle" placeholder="e.g. Quiz 1" required style="width: 100%; padding: 6px;">
-            </div>
-            <div style="margin-bottom: 10px;">
-                <label>Scheduled Date:</label>
-                <input type="date" id="scheduledDate" required style="width: 100%; padding: 6px;">
-            </div>
-            <div style="margin-bottom: 10px;">
-                <label>Start Time (24h format HH:MM):</label>
-                <input type="text" id="startTime" placeholder="14:30" required style="width: 100%; padding: 6px;">
-            </div>
-            <div style="margin-bottom: 10px;">
-                <label>Duration (Minutes):</label>
-                <input type="number" id="durationMinutes" placeholder="30" required style="width: 100%; padding: 6px;">
-            </div>
+        <form id="quizConfigForm" style="display: none; margin-top: 15px; border-top: 1px solid var(--line); padding-top: 15px;">
+            <label>Target group</label>
+            <select id="quizGroupId" required></select>
 
-            <h4 style="margin-top: 15px; color:#e11d48;">Question Details</h4>
-            <div style="background: #f8fafc; padding: 10px; border-radius: 4px;">
-                <input type="text" id="qText" placeholder="Enter question..." required style="width: 100%; margin-bottom: 8px; padding: 6px;">
-                <input type="text" id="qOptA" placeholder="Option A" required style="width: 100%; margin-bottom: 4px; padding: 6px;">
-                <input type="text" id="qOptB" placeholder="Option B" required style="width: 100%; margin-bottom: 4px; padding: 6px;">
-                <input type="text" id="qOptC" placeholder="Option C" required style="width: 100%; margin-bottom: 4px; padding: 6px;">
-                <input type="text" id="qOptD" placeholder="Option D" required style="width: 100%; margin-bottom: 8px; padding: 6px;">
-                <label>Correct Answer Option:</label>
+            <label>Quiz title</label>
+            <input type="text" id="quizTitle" placeholder="e.g. Quiz 1" required>
+
+            <label>Scheduled date</label>
+            <input type="date" id="scheduledDate" required>
+
+            <label>Start time (24h format HH:MM)</label>
+            <input type="text" id="startTime" placeholder="14:30" required>
+
+            <label>Duration (minutes)</label>
+            <input type="number" id="durationMinutes" placeholder="30" required>
+
+            <h4 style="margin-top: 15px; color: var(--warn);">Question details</h4>
+            <div style="background: var(--paper-dim); padding: 12px; border-radius: var(--radius);">
+                <input type="text" id="qText" placeholder="Enter question…" required>
+                <input type="text" id="qOptA" placeholder="Option A" required>
+                <input type="text" id="qOptB" placeholder="Option B" required>
+                <input type="text" id="qOptC" placeholder="Option C" required>
+                <input type="text" id="qOptD" placeholder="Option D" required>
+                <label>Correct answer option</label>
                 <select id="qCorrect"><option>A</option><option>B</option><option>C</option><option>D</option></select>
             </div>
 
-            <button class="btn" type="submit" style="background-color: #e11d48; color: white; width: 100%; margin-top: 15px;">Save & Publish Quiz</button>
+            <button class="btn warn" type="submit" style="width: 100%; margin-top: 15px;">Save & publish quiz</button>
         </form>
     </div>
 
     <!-- Lecturer's own quizzes: publish/close + view results -->
     <h2>Your quizzes</h2>
-    <div id="lecturerQuizzes" class="card muted">Loading your quizzes…</div>
+    <div id="lecturerQuizzes" class="card empty-state">Loading your quizzes…</div>
 </div>
 
 <!-- STUDENT HUB VIEW -->
 <div id="studentControls" style="display: none;">
-    <div class="card" style="background-color: #f8fafc; border-left: 4px solid #0ea5e9; margin-bottom: 20px;">
-        <h3>🎓 Student Hub</h3>
+    <div class="card panel-student">
+        <h3>Student hub</h3>
         <p class="muted">Welcome to your forum dashboard. Browse your assigned groups and topics below.</p>
     </div>
 
     <h2>Published quizzes</h2>
-    <div id="studentQuizzes" class="card muted">Loading published quizzes…</div>
+    <div id="studentQuizzes" class="card empty-state">Loading published quizzes…</div>
 
     <h2>My grades</h2>
-    <div id="studentGrades" class="card muted">Loading your grades…</div>
+    <div id="studentGrades" class="card empty-state">Loading your grades…</div>
 </div>
 
 <!-- SHARED REGIONS -->
-     <!-- Create Group Card -->
-    <div class="card" style="border-left: 4px solid #4f46e5; margin-bottom: 20px;">
-        <h3>Create a new Course Group</h3>
-        <form id="createGroupForm">
-            <input type="text" id="groupName" placeholder="Group name (e.g. CS301 Databases)" required>
-            <textarea id="groupDescription" placeholder="What is this group for?" rows="2"></textarea>
-            <button class="btn" type="submit">Create group</button>
-        </form>
-    </div>
+<!-- Create Group Card -->
+<div class="card panel-create">
+    <h3>Create a new course group</h3>
+    <form id="createGroupForm">
+        <input type="text" id="groupName" placeholder="Group name (e.g. CS301 Databases)" required>
+        <textarea id="groupDescription" placeholder="What is this group for?" rows="2"></textarea>
+        <button class="btn" type="submit">Create group</button>
+    </form>
+</div>
+
 <h2>Your groups</h2>
 <div id="groups"></div>
 
 <h2>Recommended topics</h2>
-<div id="recommendations" class="card muted">Loading recommendations…</div>
+<div id="recommendations" class="empty-state">Loading recommendations…</div>
 
 <h2>Notifications</h2>
-<div id="notifications" class="card muted">Loading notifications…</div>
+<div id="notifications" class="card empty-state">Loading notifications…</div>
 @endsection
 
 @section('scripts')
@@ -130,7 +124,6 @@
         const me = await api('/me');
         if (!me) return;
 
-        // FIXED: Extract role from array using index [0] to match your AuthController response structure
         const rawRole = (me.roles && me.roles.length > 0) ? me.roles[0].role_name : 'Student';
         document.getElementById('welcome').textContent = `Welcome, ${me.full_name} (${rawRole})`;
 
@@ -158,12 +151,12 @@
                 <div class="muted">${g.description ?? ''} · ${g.members_count ?? 0} members · ${g.topics_count ?? 0} topics</div>
                 ${isStaff ? `
                     <div style="margin-top: 8px;">
-                        <a class="btn btn-secondary" href="/admin/statistics/${g.group_id}" style="padding: 4px 10px; font-size: 13px;">Statistics</a>
-                        <a class="btn btn-secondary" href="/groups/${g.group_id}/gradebook" style="padding: 4px 10px; font-size: 13px; margin-left: 6px;">Gradebook</a>
+                        <a class="btn secondary" href="/admin/statistics/${g.group_id}" style="padding: 4px 10px; font-size: 13px;">Statistics</a>
+                        <a class="btn secondary" href="/groups/${g.group_id}/gradebook" style="padding: 4px 10px; font-size: 13px; margin-left: 6px;">Gradebook</a>
                     </div>
                 ` : ''}
             </div>
-        `).join('') || '<div class="muted">You are not in any groups yet.</div>';
+        `).join('') || '<div class="card empty-state">You are not in any groups yet.</div>';
 
         const dropdown = document.getElementById('quizGroupId');
         if (dropdown && groups.length > 0) {
@@ -174,12 +167,12 @@
     }
 
     /* ---------------- Lecturer: manage own quizzes ---------------- */
-
     async function loadLecturerQuizzes() {
         const container = document.getElementById('lecturerQuizzes');
         if (!container) return;
 
         const quizzes = await api('/me/quizzes') || [];
+        container.classList.remove('empty-state');
 
         container.innerHTML = quizzes.map(q => {
             const groupName = q.group?.name ?? 'Unknown group';
@@ -189,9 +182,9 @@
             if (q.status === 'Scheduled') {
                 actions += `<button class="btn publish-quiz-btn" type="button" data-quiz-id="${q.quiz_id}" style="padding: 6px 12px; font-size: 13px;">Publish</button>`;
             } else if (q.status === 'Open') {
-                actions += `<button class="btn btn-secondary close-quiz-btn" type="button" data-quiz-id="${q.quiz_id}" style="padding: 6px 12px; font-size: 13px; margin-left: 6px;">Close</button>`;
+                actions += `<button class="btn secondary close-quiz-btn" type="button" data-quiz-id="${q.quiz_id}" style="padding: 6px 12px; font-size: 13px; margin-left: 6px;">Close</button>`;
             }
-            actions += `<button class="btn btn-secondary view-results-btn" type="button" data-quiz-id="${q.quiz_id}" style="padding: 6px 12px; font-size: 13px; margin-left: 6px;">View results</button>`;
+            actions += `<button class="btn secondary view-results-btn" type="button" data-quiz-id="${q.quiz_id}" style="padding: 6px 12px; font-size: 13px; margin-left: 6px;">View results</button>`;
 
             return `
                 <div class="card">
@@ -201,7 +194,7 @@
                     <div class="quiz-results" data-quiz-id="${q.quiz_id}" style="margin-top: 10px; display: none;"></div>
                 </div>
             `;
-        }).join('') || '<div class="muted">You have not created any quizzes yet.</div>';
+        }).join('') || '<div class="card empty-state">You have not created any quizzes yet.</div>';
 
         container.querySelectorAll('.publish-quiz-btn').forEach(btn => {
             btn.addEventListener('click', async () => {
@@ -241,14 +234,13 @@
                             `).join('')}
                         </tbody>
                     </table>
-                ` : '<div class="muted">No submissions yet.</div>';
+                ` : '<div class="empty-state">No submissions yet.</div>';
                 resultsBox.style.display = 'block';
             });
         });
     }
 
     /* ---------------- Student: published quizzes + grades ---------------- */
-
     let myAttemptsByQuiz = {};
 
     async function loadStudentQuizzes() {
@@ -260,6 +252,7 @@
         attempts.forEach(a => { myAttemptsByQuiz[a.quiz_id] = a; });
 
         const quizzes = await api('/me/quizzes') || [];
+        container.classList.remove('empty-state');
 
         container.innerHTML = quizzes.map(q => {
             const groupName = q.group?.name ?? 'Unknown group';
@@ -281,7 +274,7 @@
                     <div style="margin-top: 8px;">${action}</div>
                 </div>
             `;
-        }).join('') || '<div class="muted">No published quizzes right now.</div>';
+        }).join('') || '<div class="card empty-state">No published quizzes right now.</div>';
     }
 
     async function loadMyGrades() {
@@ -289,9 +282,11 @@
         if (!container) return;
 
         if (!myGroups.length) {
-            container.innerHTML = '<div class="muted">Join a group to see your grades.</div>';
+            container.innerHTML = '<div class="empty-state">Join a group to see your grades.</div>';
             return;
         }
+
+        container.classList.remove('empty-state');
 
         const cards = await Promise.all(myGroups.map(async (g) => {
             const grade = await api(`/groups/${g.group_id}/my-grade`);
@@ -305,24 +300,39 @@
             `;
         }));
 
-        container.innerHTML = cards.join('') || '<div class="muted">No grades recorded yet.</div>';
+        container.innerHTML = cards.join('') || '<div class="empty-state">No grades recorded yet.</div>';
     }
 
     async function loadRecommendations() {
         const recs = await api('/recommendations') || [];
         const container = document.getElementById('recommendations');
-        container.innerHTML = recs.map(r => `
-            <div><a href="/topics/${r.topic.topic_id}">${r.topic.title}</a></div>
-        `).join('') || 'No recommendations yet.';
+
+        container.innerHTML = `<div class="rec-list">${
+            recs.map(r => `
+                <div class="rec-card">
+                    <div class="rec-title"><a href="/topics/${r.topic.topic_id}">${r.topic.title}</a></div>
+                    <span class="tag-code">${r.topic.category ?? 'General'}</span>
+                    <div class="rec-score">${Math.round(r.relevance_score * 100)}%</div>
+                </div>
+            `).join('')
+        }</div>` || '';
+
+        if (!recs.length) {
+            container.innerHTML = '<div class="card empty-state">No recommendations yet — join a group and start discussing to get personalized suggestions.</div>';
+        }
     }
 
     async function loadNotifications() {
         const data = await api('/notifications');
         const notifications = data.data || data || [];
         const container = document.getElementById('notifications');
+        container.classList.remove('empty-state');
         container.innerHTML = notifications.map(n => `
-            <div style="margin-bottom: 4px;"><strong>${n.type}</strong>: ${n.message}</div>
-        `).join('') || 'No notifications yet.';
+            <div style="margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px solid var(--line);">
+                <span class="tag-code">${n.type}</span>
+                <div style="margin-top: 4px;">${n.message}</div>
+            </div>
+        `).join('') || '<div class="empty-state">No notifications yet.</div>';
     }
 
     document.getElementById('createGroupForm').addEventListener('submit', async (e) => {

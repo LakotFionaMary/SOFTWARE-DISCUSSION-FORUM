@@ -5,3 +5,18 @@
 /public/storage
 /public/hot
 .phpunit.result.cache
+
+# ML / Python
+venv/
+env/
+.venv/
+__pycache__/
+*.pyc
+*.pkl
+*.joblib
+*.h5
+*.model
+storage/framework/sessions/*
+storage/framework/views/*
+storage/logs/*.log
+*.log

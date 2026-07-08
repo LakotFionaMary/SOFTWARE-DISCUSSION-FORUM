@@ -2,18 +2,22 @@
 
 namespace App\Services;
 
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
+
 /**
  * ML Classification and Recommendation module (SDD 5.8).
  *
- * In production this calls out to an external ML microservice that runs
- * text vectorization and a trained classifier over the topic title/body.
- * Here it is implemented as a lightweight keyword-based fallback so the
- * platform still assigns a sensible category with zero external
- * dependencies; swap classify() for an HTTP call to the ML service when
- * one is available.
+ * Calls out to the Python Flask ML microservice (ml_service/app.py) for
+ * text classification and content-based recommendation scoring. Falls
+ * back to a lightweight keyword-based classifier if the ML service is
+ * unreachable, so topic creation never fails due to the ML layer being
+ * down (matches the platform's offline-resilience design).
  */
 class TopicClassifierService
 {
+    private const ML_SERVICE_URL = 'http://127.0.0.1:5001';
+
     private const CATEGORY_KEYWORDS = [
         'Networking' => ['network', 'tcp', 'ip', 'router', 'protocol'],
         'Databases' => ['database', 'sql', 'query', 'schema', 'index'],
@@ -23,6 +27,24 @@ class TopicClassifierService
     ];
 
     public function classify(string $title): string
+    {
+        try {
+            $response = Http::timeout(3)->post(self::ML_SERVICE_URL . '/classify', [
+                'text' => $title,
+            ]);
+
+            if ($response->successful() && $response->json('category')) {
+                return $response->json('category');
+            }
+        } catch (\Throwable $e) {
+            Log::warning('ML service unreachable, falling back to keyword classifier: ' . $e->getMessage());
+        }
+
+        return $this->classifyLocally($title);
+    }
+
+    /** Lightweight keyword-based fallback classifier. */
+    private function classifyLocally(string $title): string
     {
         $lower = strtolower($title);
 
