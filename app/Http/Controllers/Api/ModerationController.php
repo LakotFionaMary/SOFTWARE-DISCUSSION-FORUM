@@ -11,17 +11,28 @@ use App\Services\NotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
-/**
- * Moderation and Inactivity Management Module (SDD 5.2).
- *
- * Implements the "Watchdog Daemon" behaviour: issues progressive warnings
- * to members inactive beyond a group's inactivity_warning_period, and
- * automatically blacklists members who accumulate two unresolved warnings.
- */
+
 class ModerationController extends Controller
 {
     public function __construct(private NotificationService $notifications)
     {
+    }
+
+    public function warningsIndex()
+    {
+        $warnings = Warning::with([
+            'user' => function($query) {
+               
+                $query->select('user_id', 'full_name', 'name', 'email');
+            }, 
+            'group' => function($query) {
+                $query->select('group_id', 'name');
+            }
+        ])
+        ->orderBy('issue_date', 'desc')
+        ->get();
+
+        return response()->json($warnings);
     }
 
     /**

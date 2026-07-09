@@ -97,6 +97,7 @@
         <nav>
             <a href="{{ route('dashboard') }}" class="{{ request()->is('dashboard') ? 'active' : '' }}">Dashboard</a>
             <a href="/profile" class="{{ request()->is('profile') ? 'active' : '' }}">My Profile</a>
+            <a href="/admin/admindashboard" id="secureAdminNavLink" class="{{ request()->is('admin/admindashboard*') ? 'active' : '' }}" style=" color: white;">Admin Dashboard</a>
             <a href="#" id="logoutLink">Log out</a>
         </nav>
     </header>
@@ -125,6 +126,28 @@
             await api('/logout', { method: 'POST' });
             localStorage.removeItem('sdf_token');
             window.location = '/';
+        });
+
+        // Intercept navigation requests on the Admin Hub menu link
+        document.getElementById('secureAdminNavLink')?.addEventListener('click', function(e) {
+            // Check if they have already authenticated during this layout lifecycle
+            if (localStorage.getItem('sdf_admin_override') === 'true') {
+                return; // Let the browser load the link normally
+            }
+
+            // Halt the immediate page reload swap redirect
+            e.preventDefault();
+
+            // Fire the native token prompt verification sequence challenge
+            const accessPasscode = prompt('System Authentication Checklist Required.\nEnter Admin Dashboard Master Passcode:');
+
+            if (accessPasscode === 'Admin2026!') {
+                localStorage.setItem('sdf_admin_override', 'true');
+                alert('Authorization Clearance Granted. Accessing Master Operations Board...');
+                window.location.href = this.href; // Programmatically forward them to the view
+            } else {
+                alert('Access Violation: Invalid authorization sequence key provided.');
+            }
         });
     </script>
     @yield('scripts')
