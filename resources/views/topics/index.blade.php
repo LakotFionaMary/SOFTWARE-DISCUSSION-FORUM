@@ -10,7 +10,7 @@
     <h3>Start a new topic</h3>
     <form id="newTopicForm">
         <input type="text" id="topicTitle" placeholder="What do you want to discuss?" required>
-        <button class="btn" type="submit">Create topic</button>
+        <button class="btn" type="submit">Launch topic</button>
     </form>
 </div>
 

@@ -9,6 +9,103 @@
 .rules-check input[type="checkbox"] {    width: 18px;    height: 18px;    cursor: pointer;}
 .rules-check a {    color: #2563eb;    text-decoration: underline;    font-weight: 500;}
 .rules-check a:hover {    color: #1d4ed8;}
+
+/* ---------------- Recommendations: "cooler" styling ---------------- */
+.rec-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.65rem;
+}
+
+.rec-card {
+    display: block;
+    padding: 0.9rem 1.05rem;
+    border-radius: 14px;
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    text-decoration: none;
+    color: inherit;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+    transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+}
+
+.rec-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(0,0,0,0.08);
+    border-color: #d1d5db;
+}
+
+.rec-card-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.45rem;
+    gap: 0.5rem;
+}
+
+.rec-title {
+    margin: 0 0 0.6rem;
+    font-size: 1rem;
+    font-weight: 600;
+    line-height: 1.35;
+    color: #111827;
+  text-decoration: underline;
+}
+
+.rec-title a {
+    color: inherit;
+    text-decoration: none;
+}
+
+.rec-category {
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    padding: 0.2rem 0.55rem;
+    border-radius: 999px;
+    background: #eef2ff;
+    color: #4338ca;
+    white-space: nowrap;
+}
+
+/* Color variety per category — falls back to the default indigo above if unmatched */
+.rec-category-programming_languages { background: #ecfdf5; color: #047857; }
+.rec-category-data_structures_algorithms { background: #fef3c7; color: #92400e; }
+.rec-category-web_development { background: #eff6ff; color: #1d4ed8; }
+.rec-category-databases { background: #fce7f3; color: #a21caf; }
+.rec-category-security { background: #fee2e2; color: #b91c1c; }
+.rec-category-ai_ml { background: #f3e8ff; color: #7e22ce; }
+.rec-category-devops_cloud { background: #e0f2fe; color: #0369a1; }
+.rec-category-networking { background: #ecfeff; color: #0e7490; }
+.rec-category-oop_concepts { background: #fef9c3; color: #854d0e; }
+.rec-category-systems_hardware_os { background: #f1f5f9; color: #334155; }
+.rec-category-distributed_systems { background: #ede9fe; color: #6d28d9; }
+.rec-category-software_engineering_process { background: #d1fae5; color: #065f46; }
+.rec-category-theoretical_cs_math { background: #fae8ff; color: #a21caf; }
+.rec-category-emerging_tech { background: #fff7ed; color: #c2410c; }
+.rec-category-general_cs { background: #f3f4f6; color: #4b5563; }
+
+.rec-score {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #059669;
+    white-space: nowrap;
+}
+
+.rec-bar-track {
+    height: 6px;
+    border-radius: 999px;
+    background: #f3f4f6;
+    overflow: hidden;
+}
+
+.rec-bar-fill {
+    height: 100%;
+    border-radius: 999px;
+    background: linear-gradient(90deg, #6366f1, #10b981);
+    transition: width 0.4s ease;
+}
 </style>
 
 <div class="eyebrow">Discussion Dashboard</div>
@@ -97,7 +194,7 @@ Join Group
 </form>
 </div>
 
-<h2>Recommended topics</h2>
+<h2>✨ Recommended topics</h2>
 <div id="recommendations" class="empty-state">Loading recommendations…</div>
 
 <h2>Notifications</h2>
@@ -318,23 +415,51 @@ async function loadMyGrades() {
     container.innerHTML = cards.join('') || '<div class="empty-state">No grades recorded yet.</div>';
 }
 
+/* ---------------- Recommendations: cooler rendering ---------------- */
+function categorySlug(category) {
+    return (category || 'general_cs').toString().trim().toLowerCase().replace(/[\s-]+/g, '_');
+}
+
+function categoryLabel(category) {
+    if (!category) return 'General';
+    return category
+        .toString()
+        .replace(/_/g, ' ')
+        .replace(/\b\w/g, c => c.toUpperCase());
+}
+
 async function loadRecommendations() {
     const recs = await api('/recommendations') || [];
     const container = document.getElementById('recommendations');
 
-    container.innerHTML = `<div class="rec-list">${
-        recs.map(r => `
-            <div class="rec-card">
-                <div class="rec-title"><a href="/topics/${r.topic.topic_id}">${r.topic.title}</a></div>
-                <span class="tag-code">${r.topic.category ?? 'General'}</span>
-                <div class="rec-score">${Math.round(r.relevance_score * 100)}%</div>
-            </div>
-        `).join('')
-    }</div>` || '';
-
     if (!recs.length) {
         container.innerHTML = '<div class="card empty-state">No recommendations yet — join a group and start discussing to get personalized suggestions.</div>';
+        return;
     }
+
+    container.classList.remove('empty-state');
+    container.innerHTML = `<div class="rec-list">${
+        recs.map(r => {
+            const topic = r.topic;
+            if (!topic) return '';
+            const score = Number(r.relevance_score) || 0;
+            const percent = Math.round(score * 100);
+            const slug = categorySlug(topic.category);
+
+            return `
+                <a class="rec-card" href="/topics/${topic.topic_id}">
+                    <div class="rec-card-top">
+                        <span class="rec-category rec-category-${slug}">${categoryLabel(topic.category)}</span>
+                        <span class="rec-score">${percent}% match</span>
+                    </div>
+                    <h3 class="rec-title">${topic.title}</h3>
+                    <div class="rec-bar-track">
+                        <div class="rec-bar-fill" style="width: ${percent}%"></div>
+                    </div>
+                </a>
+            `;
+        }).join('')
+    }</div>`;
 }
 
 async function loadNotifications() {
