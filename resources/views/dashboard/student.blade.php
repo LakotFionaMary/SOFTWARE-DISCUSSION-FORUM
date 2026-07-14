@@ -25,6 +25,24 @@
     }
     .group-item .join-btn:hover { background: var(--accent-dark); }
 
+    /* ---------- Group members toggle (names under each group card) ---------- */
+    .group-card-wrap { border-bottom: 1px solid var(--line); }
+    .group-card-wrap:last-child { border-bottom: none; }
+    .group-card-wrap .group-item { border-bottom: none; }
+    .members-toggle {
+        display: inline-block; font-size: 12px; color: var(--accent); cursor: pointer;
+        padding: 0 4px 10px; user-select: none;
+    }
+    .members-toggle:hover { text-decoration: underline; }
+    .members-names {
+        display: none; padding: 0 4px 12px; font-size: 13px; color: var(--slate);
+        flex-wrap: wrap; gap: 6px;
+    }
+    .members-names.open { display: flex; }
+    .members-names .member-chip {
+        background: #eef2f1; border-radius: 12px; padding: 3px 10px; font-size: 12.5px;
+    }
+
     /* Chat thread + composer, reused from the standalone topic page so the
        inline preview here looks/feels the same. No fixed height/scrolling —
        it simply grows with the conversation. */
@@ -80,6 +98,19 @@
     }
     .icon-btn svg { width: 16px; height: 16px; flex-shrink: 0; }
     .icon-btn:hover { background: rgba(0,0,0,.06); color: var(--accent); }
+
+    /* ---------- Post exclusion checklist (dashboard composer) ---------- */
+    .exclusion-wrap { margin-top: 10px; }
+    .exclusion-wrap .exclusion-label { font-size: 13px; font-weight: 600; color: var(--slate); display: block; margin-bottom: 6px; }
+    .exclusion-list {
+        border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px;
+        max-height: 140px; overflow-y: auto; background: #fff;
+    }
+    .exclusion-list label {
+        display: flex; align-items: center; gap: 8px;
+        padding: 6px 2px; font-size: 14px; cursor: pointer;
+    }
+    .exclusion-list input[type="checkbox"] { width: 15px; height: 15px; flex-shrink: 0; }
 
     /* ---------- Forward message modal ---------- */
     .modal-overlay {
@@ -188,7 +219,7 @@
     let activeBrowseGroupName = '';
     let activeBrowseTopicId = null;
     let activeBrowseTopicTitle = '';
-    let currentTopicMessages = []; 
+    let currentTopicMessages = [];
 
     function escAttr(str) {
         return (str || '').replace(/'/g, "\\'");
@@ -198,6 +229,7 @@
         const data = await api('/groups');
         const groups = (data && (data.data || data)) || [];
         myGroups = groups;
+        Object.keys(groupMembersCache).forEach(k => delete groupMembersCache[k]);
         renderGroupAdminPanel(groups);
         renderGroupsBrowser();
     }
@@ -219,15 +251,19 @@
         const rows = myGroups.map(g => {
             const joined = g.is_member || g.is_group_admin;
             return `
-                <div class="group-item" data-group-id="${g.group_id}" onclick="openGroupTopics(${g.group_id}, '${escAttr(g.name)}')">
-                    <div class="group-info">
-                        <strong>${g.name}</strong>
-                        <div class="muted">${g.members_count ?? 0} members · ${g.topics_count ?? 0} topics</div>
+                <div class="group-card-wrap">
+                    <div class="group-item" data-group-id="${g.group_id}" onclick="openGroupTopics(${g.group_id}, '${escAttr(g.name)}')">
+                        <div class="group-info">
+                            <strong>${g.name}</strong>
+                            <div class="muted">${g.members_count ?? 0} members · ${g.topics_count ?? 0} topics</div>
+                        </div>
+                        ${joined
+                            ? '<span class="badge role-student">Joined</span>'
+                            : `<button type="button" class="join-btn" onclick="joinGroupInline(event, ${g.group_id})">Join</button>`
+                        }
                     </div>
-                    ${joined
-                        ? '<span class="badge role-student">Joined</span>'
-                        : `<button type="button" class="join-btn" onclick="joinGroupInline(event, ${g.group_id})">Join</button>`
-                    }
+                    <span class="members-toggle" onclick="toggleGroupMembers(event, ${g.group_id})" id="membersToggle-${g.group_id}">Show members</span>
+                    <div class="members-names" id="membersNames-${g.group_id}"></div>
                 </div>
             `;
         }).join('') || '<div class="empty-state">No groups exist yet.</div>';
@@ -269,12 +305,18 @@
                 </button>
             </div>
             <div class="chat-thread" id="dashPosts"><div class="muted">Loading messages…</div></div>
-            <form class="composer" id="dashComposerForm">
-                <textarea id="dashComposerInput" rows="1" placeholder="Type a message…" required
-                    oninput="this.style.height='auto'; this.style.height=(this.scrollHeight)+'px';"></textarea>
-                <button class="composer-send" type="submit" title="Send">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
-                </button>
+            <form class="composer-block" id="dashComposerForm">
+                <div class="composer">
+                    <textarea id="dashComposerInput" rows="1" placeholder="Type a message…" required
+                        oninput="this.style.height='auto'; this.style.height=(this.scrollHeight)+'px';"></textarea>
+                    <button class="composer-send" type="submit" title="Send">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                    </button>
+                </div>
+                <div class="exclusion-wrap">
+                    <span class="exclusion-label">Group Member Exclusions (check users to hide this post from them):</span>
+                    <div class="exclusion-list" id="dashExclusionList"><div class="muted" style="font-size:13px;">Loading members…</div></div>
+                </div>
             </form>
         `;
     }
@@ -307,6 +349,43 @@
         renderGroupsBrowser();
     }
     window.browseGoBack = browseGoBack;
+
+    /* ---------- Group members toggle (names under each group card in Groups list) ---------- */
+    const groupMembersCache = {};
+
+    async function toggleGroupMembers(event, groupId) {
+        event.stopPropagation();
+        const namesEl = document.getElementById(`membersNames-${groupId}`);
+        const toggleEl = document.getElementById(`membersToggle-${groupId}`);
+        if (!namesEl || !toggleEl) return;
+
+        const isOpen = namesEl.classList.contains('open');
+        if (isOpen) {
+            namesEl.classList.remove('open');
+            toggleEl.textContent = 'Show members';
+            return;
+        }
+
+        toggleEl.textContent = 'Hide members';
+        namesEl.classList.add('open');
+
+        if (groupMembersCache[groupId]) {
+            namesEl.innerHTML = groupMembersCache[groupId];
+            return;
+        }
+
+        namesEl.innerHTML = '<span class="muted">Loading members…</span>';
+
+        const data = await api(`/groups/${groupId}/members`);
+        const members = (data && (data.data || data)) || [];
+
+        const html = members.map(m => `<span class="member-chip">${m.full_name || m.name}</span>`).join('')
+            || '<span class="muted">No members yet.</span>';
+
+        groupMembersCache[groupId] = html;
+        namesEl.innerHTML = html;
+    }
+    window.toggleGroupMembers = toggleGroupMembers;
 
     async function joinGroupInline(event, groupId) {
         event.stopPropagation();
@@ -391,6 +470,8 @@
         }).join('') || '<div class="muted">No messages yet in this topic — start the discussion below.</div>';
 
         container.scrollTop = container.scrollHeight;
+
+        loadGroupMembersForExclusion();
     }
 
     function renderMsgGroup(side, authorName, content, time, isReply) {
@@ -411,6 +492,26 @@
             </div>
         `;
     }
+
+    /* ---------- Post exclusion checklist ---------- */
+    async function loadGroupMembersForExclusion() {
+        const listEl = document.getElementById('dashExclusionList');
+        if (!listEl || !activeBrowseGroupId) return;
+
+        const data = await api(`/groups/${activeBrowseGroupId}/members`);
+        const members = (data && (data.data || data)) || [];
+        const myId = window.CURRENT_USER ? window.CURRENT_USER.user_id : null;
+
+        listEl.innerHTML = members
+            .filter(m => m.user_id !== myId)
+            .map(m => `
+                <label>
+                    <input type="checkbox" value="${m.user_id}">
+                    ${m.full_name || m.name}
+                </label>
+            `).join('') || '<div class="muted" style="font-size:13px;">No other members in this group.</div>';
+    }
+    window.loadGroupMembersForExclusion = loadGroupMembersForExclusion;
 
     function focusComposerWithMention(authorName) {
         const textarea = document.getElementById('dashComposerInput');
@@ -534,7 +635,9 @@
             e.preventDefault();
             if (!activeBrowseTopicId) return;
             const textarea = document.getElementById('dashComposerInput');
-            await api(`/topics/${activeBrowseTopicId}/posts`, { method: 'POST', body: { content: textarea.value, exclude_user_ids: [] } });
+            const excludeIds = Array.from(document.querySelectorAll('#dashExclusionList input[type="checkbox"]:checked'))
+                .map(cb => Number(cb.value));
+            await api(`/topics/${activeBrowseTopicId}/posts`, { method: 'POST', body: { content: textarea.value, exclude_user_ids: excludeIds } });
             textarea.value = '';
             textarea.style.height = 'auto';
             loadBrowsePosts();
