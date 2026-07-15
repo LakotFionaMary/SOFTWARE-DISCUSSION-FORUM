@@ -91,6 +91,10 @@ class User extends Authenticatable
     {
         return $this->hasMany(Post::class, 'author_id', 'user_id');
     }
+  public function topicRecommendations()
+{
+    return $this->hasMany(TopicRecommendation::class, 'user_id', 'user_id');
+}
 
     public function replies(): HasMany
     {
@@ -141,13 +145,4 @@ class User extends Authenticatable
             ->where('end_date', '>', now())
             ->exists();
     }
-    public function isMemberOf(int $groupId): bool
-{
-    if ($this->hasRole('Administrator')) {
-        return true;
-    }
-
-    return $this->memberships()->where('group_id', $groupId)->exists();
-}
-
 }

@@ -10,7 +10,6 @@
         .author { font-weight: bold; }
         .reply { margin-left: 18px; padding: 6px 0; border-left: 2px solid #d8d2c4; padding-left: 10px; }
     </style>
-    
 </head>
 <body>
     <h1>{{ $topic->title }}</h1>
