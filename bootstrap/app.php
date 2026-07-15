@@ -11,8 +11,19 @@ return Application::configure(basePath: dirname(__DIR__))
         web: __DIR__.'/../routes/web.php',
         api: __DIR__.'/../routes/api.php',
         commands: __DIR__.'/../routes/console.php',
+        channels: __DIR__.'/../routes/channels.php',
+        then: function () {
+            // Explicitly register the broadcasting auth route under the api middleware prefix
+            Broadcast::routes(['prefix' => 'api', 'middleware' => ['api', 'auth:sanctum']]);
+        },
         health: '/up',
     )
+
+   ->withBroadcasting(
+    __DIR__.'/../routes/channels.php',
+    ['middleware' => ['web', 'auth']],
+)
+    
     ->withMiddleware(function (Middleware $middleware) {
         // Register the custom middleware used throughout routes/api.php.
         // See SDD 5.1 ("role-based access control across all endpoints")

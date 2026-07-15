@@ -9,6 +9,7 @@ use App\Models\Post;
 use App\Models\PostExclusion;
 use App\Models\Topic;
 use App\Services\NotificationService;
+use App\Events\MessageBroadcast;
 use Illuminate\Http\Request;
 
 /**
@@ -60,6 +61,14 @@ class PostController extends Controller
             'attachment_url' => $request->attachment_url,
             'posted_at' => now(),
         ]);
+        $post->load('author');
+        broadcast(new MessageBroadcast($post, $post->topic_id));
+
+//broadcast(new MessageBroadcast($post))->toOthers();
+
+        // RIGHT: Pass only the $post model instance
+        // event(new MessageBroadcast($post));
+        //event(new MessageBroadcast($topic->topic_id, 'post', $post->load('author')->toArray()));
 
         foreach ($request->input('exclude_user_ids', []) as $excludedUserId) {
             PostExclusion::create(['post_id' => $post->post_id, 'excluded_user_id' => $excludedUserId]);
