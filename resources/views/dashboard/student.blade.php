@@ -320,7 +320,19 @@
             .error((error) => {
                 console.error("Presence channel subscription error:", error);
             });
-    };
+            
+    };//////////////added
+    document.addEventListener('DOMContentLoaded', () => {
+    console.log("DOM loaded. Checking for Laravel Echo...");
+    
+    // Check if we already have a default topic to subscribe to on load
+    // (For example, if your application has a default activeBrowseTopicId variable)
+    if (typeof activeBrowseTopicId !== 'undefined' && activeBrowseTopicId) {
+        window.subscribeToTopic(activeBrowseTopicId);
+    } else {
+        console.log("No active topic selected yet. Waiting for user interaction.");
+    }
+});
  
     function escAttr(str) {
         return (str || '').replace(/'/g, "\\'");

@@ -17,10 +17,8 @@ window.Echo = new Echo({
     authEndpoint: '/api/broadcasting/auth',
     auth: {
         headers: {
-            // 2. Tell Laravel not to redirect (no more 302s!)
-            'Accept': 'application/json',
-            // 3. Pass your Sanctum token
-            'Authorization': token ? `Bearer ${token}` : '',
+           Authorization: `Bearer ${localStorage.getItem('sdf_token')}`,
+            Accept: 'application/json',
         }
     }
 });
