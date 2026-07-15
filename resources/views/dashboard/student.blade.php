@@ -503,7 +503,7 @@
     // GroupController::index) get a card here; everyone else never even
     // sees the "Group Admin" item in the sidebar.
     function renderGroupAdminPanel(groups) {
-        const adminGroups = groups.filter(g => g.is_group_admin);
+        const adminGroups = groups.filter(g =>g.admin_id == window.CURRENT_USER.user_id);
         const tab = document.getElementById('navGroupAdmin');
  
         if (tab) tab.style.display = adminGroups.length ? 'flex' : 'none';
