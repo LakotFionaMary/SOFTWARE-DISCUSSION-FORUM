@@ -33,6 +33,7 @@ use App\Http\Controllers\Api\ProfileController;
 // ---------------------------------------------------------------------
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
+Route::get('/topics', [TopicController::class, 'globalIndex']);
 
 Route::middleware('auth:sanctum')->group(function () {
 
@@ -63,6 +64,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // -------------------------------------------------------------
     // 5.3 Topic Management and Export Module
     // -------------------------------------------------------------
+    Route::get('/topics', [TopicController::class, 'index']);
     Route::get('/groups/{group}/topics', [TopicController::class, 'index']);
     Route::post('/groups/{group}/topics', [TopicController::class, 'store'])
         ->middleware('blacklist');

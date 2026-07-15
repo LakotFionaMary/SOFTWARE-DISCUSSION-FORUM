@@ -23,6 +23,14 @@ const groupId = {{ $group }};
 
 async function loadStats() {
     const stats = await api(`/groups/${groupId}/statistics`);
+
+    if (!stats || stats.message) {
+        document.getElementById('groupName').textContent = 'Access denied';
+        document.getElementById('metrics').innerHTML = `<p class="muted">${stats?.message ?? 'You do not have access to this group\'s statistics.'}</p>`;
+        document.querySelector('#strugglingTable').style.display = 'none';
+        return;
+    }
+
     document.getElementById('groupName').textContent = `${stats.group} — analytics`;
     document.getElementById('metrics').innerHTML = `
         <table>

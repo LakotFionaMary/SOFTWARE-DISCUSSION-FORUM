@@ -1,4 +1,15 @@
  cc2a129f004bb8e8f93894a88f20b4deb925ccdf
-/storage/framework/views/*
+ /storage/*.key
 /storage/logs/*
+/storage/framework/cache/*
+/storage/framework/sessions/*
+/storage/framework/testing/*
+/storage/framework/views/*
 /vendor/
+/node_modules/
+.env
+.env.*
+/public/build/
+public/build/assets/
+public/build/manifest.json
+/public/hot/

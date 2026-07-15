@@ -146,12 +146,39 @@
 @endsection
 
 @section('scripts')
+@vite(['resources/js/app.js'])
 <script>
+    if (window.Pusher) {
+    window.Pusher = Pusher;
+}
+
+// 2. Manually boot Echo to bypass compiler bugs
+if (typeof window.Echo === 'undefined' || !window.Echo) {
+    console.log("Forcing manual, inline configuration for Laravel Echo...");
+    
+    // Explicitly import Echo if you have it compiled, otherwise build it on top of the global Pusher
+    window.Echo = new window.Echo({
+        broadcaster: 'reverb',
+        key: '{{ env("REVERB_APP_KEY") }}', // Injects your key straight from the .env file
+        wsHost: '127.0.0.1',
+        wsPort: 8080,
+        forceTLS: false,
+        enabledTransports: ['ws', 'wss'],
+        // This forces Echo to immediately start the connection handshakes!
+        disableStats: true,
+    });
+}
 // Use standard Laravel blade echo if global window var isn't used elsewhere
-const topicId = parseInt("{{ $topic }}") || null;
+//const topicId = parseInt("{{ $topic }}") || null;
+// Change 'const' to 'let' at the top of your script
+let topicId = parseInt("{{ $topic }}") || null; 
+let activeChannelId = topicId; // Track the currently subscribed channel
+
+console.log("Current topic:", topicId);
 
 let currentUserRole = 'Student';
 let currentUserId = null;
+
 
 /* ---------------- Inline icon library ---------------- */
 const ICONS = {
@@ -188,7 +215,183 @@ async function loadCurrentUser() {
     }
 }
 
+let subscribed = false;
+
 async function loadTopic() {
+    if (!topicId) return;
+
+    const t = await executeApiCall(`/topics/${topicId}`);
+
+    // ...your existing code...
+    const titleEl = document.getElementById('topicTitle');
+    const categoryEl = document.getElementById('topicCategory');
+    const postsContainer = document.getElementById('posts');
+
+    if (!t || t.message) {
+        if(titleEl) titleEl.textContent = 'Unavailable';
+        if(postsContainer) postsContainer.innerHTML = `<div class="muted">${(t && t.message) || 'This topic could not be loaded.'}</div>`;
+        return;
+    }
+
+    if(titleEl) titleEl.textContent = t.title || "No Title";
+    if(categoryEl) categoryEl.textContent = t.category ?? 'General';
+    
+
+    renderPosts(t.posts || []);
+     if (postsContainer) {
+        setTimeout(() => {
+            postsContainer.scrollTop = postsContainer.scrollHeight;
+        }, 50); // A tiny 50ms delay makes sure the scroll is 100% accurate!
+    }
+    // --- ADD THIS HERE ---
+    // Every single time a topic successfully finishes loading,
+    // we must manually trigger the WebSocket subscription!
+    subscribeToTopic();
+}
+
+console.log("TOPIC SCRIPT LOADED");   
+
+  window.subscribeToTopic = function () {
+//function subscribeToTopic() {
+    console.log("subscribeToTopic called");
+    console.log("topicId =", topicId);
+
+    if (!topicId) {
+        console.log("No topicId!");
+        return;
+    }
+
+
+    // Check if Laravel Echo is loaded
+    if (typeof window.Echo === 'undefined') {
+        console.error("CRITICAL: Laravel Echo is not defined on the window object! Check if your app.js layout file is compiling and importing Echo correctly.");
+        return;
+    }
+
+    console.log("Successfully calling Echo.join for topic:", topicId);
+    
+    try {
+        
+        
+        window.Echo.join(`topic.${topicId}`)
+            .here((users) => {
+                console.log('Connected to topic! Online users:', users);
+            })
+            .joining((user) => {
+                console.log(user.full_name + ' joined');
+            })
+            .leaving((user) => {
+                console.log(user.full_name + ' left');
+            })
+            /*.listen('.message.sent', (event) => {
+                console.log('WebSocket Message Received (.message.sent):', event);
+                loadTopic();
+            })*/
+           .listen('.MessageBroadcast', (e) => { // Note the '.' prefix if using broadcastAs()
+                console.log("New message received:", e.reply);
+                console.log("!!! WEBSOCKET EVENT RECEIVED !!!");
+                console.log("Raw event payload:", e);
+
+                // Safe guard: check if e or e.reply exists
+                if (!e || !e.reply) {
+                    console.error("Payload structure mismatch! Received:", e);
+                    return;
+                }
+               
+                // 1. Identify if the message belongs to the current logged-in user
+                const isMine = e.reply.author_id === currentUserId;
+                const sideClass = isMine ? 'mine' : 'theirs';
+                const authorName = e.reply.author ? (e.reply.author.full_name || e.reply.author.name) : "User";
+                
+                const formattedTime = new Date(e.reply.replied_at || e.reply.created_at).toLocaleTimeString([], { 
+                    hour: '2-digit', 
+                    minute: '2-digit' 
+                });
+
+                // Determine if flagging action is allowed for the UI (Matches renderPosts logic)
+                const canFlag = currentUserRole === 'Administrator' || currentUserRole === 'Lecturer';
+
+                // 2. Build the exact HTML layout used in your renderPosts() function
+                const newReplyHtml = `
+                    <div class="msg-group ${sideClass} reply-row" id="reply-${e.reply.reply_id}">
+                        <div class="bubble ${e.reply.is_flagged ? 'is-flagged' : ''}">
+                            <div class="bubble-author">${authorName}</div>
+                            <div class="bubble-content">${e.reply.content}</div>
+                            <div class="bubble-meta">
+                                ${e.reply.is_flagged ? '<span class="bubble-flag-tag">flagged · </span>' : ''}
+                                ${formattedTime}
+                            </div>
+                        </div>
+                        ${actionsHtml('reply', e.reply.reply_id, e.reply.is_flagged, canFlag)}
+                    </div>
+                `;
+
+                // 3. Find the reply composer for this specific post
+                const replyInput = document.getElementById(`reply-input-${e.reply.post_id}`);
+                
+                if (replyInput) {
+                    // Get the composer container wrapper (<div class="reply-composer">)
+                    const replyComposer = replyInput.closest('.reply-composer');
+                    
+                    if (replyComposer) {
+                        // Insert the new reply directly BEFORE the reply input composer!
+                        // This guarantees it goes to the bottom of the reply stack, right above the input field.
+                        replyComposer.insertAdjacentHTML('beforebegin', newReplyHtml);
+                    }
+                } else {
+                    // Fallback: If we can't find the composer, append to the bottom of the thread
+                    const postsContainer = document.getElementById('posts');
+                    if (postsContainer) {
+                        postsContainer.insertAdjacentHTML('beforeend', newReplyHtml);
+                    }
+                }
+
+                // 4. Auto-scroll container so users see the incoming text bubble
+                const postsContainer = document.getElementById('posts');
+                if (postsContainer) {
+                    postsContainer.scrollTop = postsContainer.scrollHeight;
+                }
+            });
+            
+    } catch (error) {
+        console.error("Echo join operation failed with error:", error);
+    }
+}
+       document.addEventListener('DOMContentLoaded', async () => {
+    console.log("Page loaded. Initializing setup...");
+
+    // 1. Try to load user
+    try {
+        await loadCurrentUser();
+        console.log("User loaded. Role:", currentUserRole, "ID:", currentUserId);
+    } catch (err) {
+        console.error("Failed to load current user:", err);
+    }
+
+    // 2. Try to load topic messages
+    try {
+        await loadTopic();
+        console.log("Topic messages loaded successfully.");
+    } catch (err) {
+        console.error("Failed to load topic:", err);
+    }
+
+    // 3. Try to load exclusions
+    try {
+        await loadGroupsForExclusion();
+    } catch (err) {
+        console.error("Failed to load exclusions:", err);
+    }
+
+    // 4. Try to subscribe to WebSockets (We don't await this)
+    try {
+        subscribeToTopic();
+    } catch (err) {
+        console.error("Failed to subscribe to topic channel:", err);
+    }
+});
+
+/*async function loadTopic() {
     if(!topicId) return;
     const t = await executeApiCall(`/topics/${topicId}`);
     
@@ -210,7 +413,7 @@ async function loadTopic() {
     if(postsContainer) {
         postsContainer.scrollTop = postsContainer.scrollHeight;
     }
-}
+}*/
 
 async function loadGroupsForExclusion() {
     const select = document.getElementById('excludeGroup');
@@ -430,19 +633,26 @@ if(composerForm) {
     composerForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         const textarea = document.getElementById('postContentComposer');
+        const contentVal = textarea.value.trim();
+        if(!contentVal) return;
+
+        // Reset the input immediately to make it feel fast (WhatsApp style!)
+        textarea.value = '';
+        if(textarea) textarea.style.height = 'auto';
+
         const res = await executeApiCall(`/topics/${topicId}/posts`, {
             method: 'POST',
-            body: { content: textarea.value, exclude_user_ids: [] },
+            body: { content: contentVal, exclude_user_ids: [] },
         });
+
         if (res && res.message && !res.author) {
             alert(res.message);
         }
-        e.target.reset();
-        if(textarea) textarea.style.height = 'auto';
-        loadTopic();
+
+        // Refresh the thread locally to show your newly sent message instantly
+        await loadTopic();
     });
 }
-
 async function viewProfile(userId) {
     const profile = await executeApiCall(`/users/${userId}/profile`);
     if (!profile) return;
@@ -528,5 +738,6 @@ window.downloadPDF = async function() {
         alert(`Failed to export PDF: ${err.message}`);
     }
 }
+  
 </script>
 @endsection

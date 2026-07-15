@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\Concerns\TracksParticipation;
 use App\Models\Post;
 use App\Models\Reply;
 use App\Services\NotificationService;
+use App\Events\MessageBroadcast;
 use Illuminate\Http\Request;
 
 /**
@@ -42,6 +43,10 @@ class ReplyController extends Controller
             'content' => $request->content,
             'replied_at' => now(),
         ]);
+        event(new MessageBroadcast($reply, $post->topic_id));
+        // event(new MessageBroadcast($post));
+
+       // event(new MessageBroadcast($post->topic_id, 'reply', $reply->load('author')->toArray()));
 
         $author->update(['last_active_at' => now()]);
         $this->recordParticipation($author, $post->topic->group_id, 'reply');

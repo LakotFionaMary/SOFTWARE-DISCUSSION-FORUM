@@ -3,46 +3,44 @@
 namespace App\Events;
 
 use App\Models\Post;
-use Illuminate\Broadcasting\Channel;
-use Illuminate\Broadcasting\InteractsWithSockets;
+use App\Models\Reply;
 use Illuminate\Broadcasting\PresenceChannel;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
 
-/**
- * Real-time messaging event (SDD 5.4). Broadcast over the group's presence
- * channel so "receiving clients automatically get the new message... without
- * needing a page refresh." Excluded members never receive this event because
- * MessagingController filters recipients before the exclusion rows are used
- * by the client-side channel authorization callback.
- */
 class MessageBroadcast implements ShouldBroadcast
 {
-    use Dispatchable, InteractsWithSockets, SerializesModels;
+    use Dispatchable, SerializesModels;
 
-    public function __construct(public Post $post)
+    public $reply;
+    public $topicId;
+
+    /**
+     * Pass the newly created reply so it's sent to the frontend.
+     */
+    public function __construct( $reply, $topicId)
     {
+        // Load the author relation so the frontend knows who typed it
+        $this->reply = $reply->load('author');
+        $this->topicId = $topicId;
     }
 
+    /**
+     * Broadcast on the presence channel for this specific topic.
+     */
     public function broadcastOn(): array
     {
-        return [new PresenceChannel('group.'.$this->post->topic->group_id)];
+        return [
+            new PresenceChannel('topic.' . $this->topicId),
+        ];
     }
 
+    /**
+     * The event name Echo will listen for.
+     */
     public function broadcastAs(): string
     {
-        return 'message.sent';
-    }
-
-    public function broadcastWith(): array
-    {
-        return [
-            'post_id' => $this->post->post_id,
-            'topic_id' => $this->post->topic_id,
-            'author' => $this->post->author->full_name,
-            'content' => $this->post->content,
-            'posted_at' => $this->post->posted_at,
-        ];
+        return 'MessageBroadcast';
     }
 }
