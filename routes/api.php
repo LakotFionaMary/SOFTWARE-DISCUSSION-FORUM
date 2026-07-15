@@ -40,7 +40,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/me', [AuthController::class, 'me']);
     Route::patch('/me', [ProfileController::class, 'update']);
     Route::post('/me/profile-picture', [ProfileController::class, 'updatePicture']);
-  Route::get('/users/{userId}/profile', [ProfileController::class, 'show']);
+    Route::get('/users/{userId}/profile', [ProfileController::class, 'show']);
 
     // -------------------------------------------------------------
     // 5.1 Role Management (Administrator only)
@@ -49,11 +49,6 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/users', [UserController::class, 'index']);
         Route::get('/users/{user}', [UserController::class, 'show']);
         Route::patch('/users/{user}/role', [UserController::class, 'assignRole']);
-
-        // Admin dashboard: platform-wide overview (user/role counts, group
-        // counts, activity). Per-group stats below are handled separately
-        // since lecturers/group-admins need access to their own group only.
-        Route::get('/statistics/system', [StatisticsController::class, 'systemStatistics']);
     });
 
     // -------------------------------------------------------------
@@ -73,6 +68,8 @@ Route::middleware('auth:sanctum')->group(function () {
         ->middleware('blacklist');
     Route::get('/topics/{topic}', [TopicController::class, 'show']);
     Route::get('/topics/{topic}/export', [TopicController::class, 'export']);
+    Route::get('/topics/{topic}/download-pdf', [TopicController::class, 'downloadPdf'])
+        ->name('topics.download_pdf');
 
     // -------------------------------------------------------------
     // Posts, replies, moderation (part of 5.2 + 5.3)
@@ -80,19 +77,26 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/topics/{topic}/posts', [PostController::class, 'index']);
     Route::post('/topics/{topic}/posts', [PostController::class, 'store']);
     Route::delete('/posts/{post}', [PostController::class, 'destroy']);
-    Route::post('/posts/{post}/flag', [PostController::class, 'flag'])
-        ->middleware('role:Administrator,Lecturer');
+    Route::post('/posts/{post}/flag', [PostController::class, 'flag']);
 
     Route::post('/posts/{post}/replies', [ReplyController::class, 'store']);
-    Route::post('/replies/{reply}/flag', [ReplyController::class, 'flag'])
-        ->middleware('role:Administrator,Lecturer');
+    // WIDENED: previously role:Administrator,Lecturer only. Group admins
+    // (students who administer their own group) can now flag content too —
+    // PostController::flag / ReplyController::flag must enforce this
+    // per-request (Administrator OR Lecturer OR an active GroupAdmin row for
+    // the post/reply's group), since a static role gate can't express that.
+    Route::post('/replies/{reply}/flag', [ReplyController::class, 'flag']);
 
     // -------------------------------------------------------------
     // 5.2 Moderation and Inactivity Management Module (admin/lecturer)
     // -------------------------------------------------------------
-    Route::get('/moderation/warnings', [ModerationController::class, 'warningsIndex']);
-    Route::post('/moderation/warnings/{warning}/resolve', [ModerationController::class, 'resolveWarning']);
-
+    // FIXED: /moderation/warnings and its resolve action were previously
+    // ALSO registered here, outside any role middleware. Laravel matches
+    // the first-defined route for a given URI, so that ungated pair was
+    // silently winning over the role:Administrator,Lecturer copies below —
+    // any authenticated user (including students) could list and resolve
+    // inactivity warnings. Removed; the role-gated group below is now the
+    // only place these two routes are registered.
     Route::middleware('role:Administrator,Lecturer')->group(function () {
         Route::get('/moderation/warnings', [ModerationController::class, 'warningsIndex']);
         Route::post('/groups/{group}/moderation/scan-inactivity', [ModerationController::class, 'scanInactivity']);
@@ -152,15 +156,21 @@ Route::middleware('auth:sanctum')->group(function () {
     });
 
     // -------------------------------------------------------------
-    // 5.7 Statistics Module (Administrator, group's Lecturer, or an
-    // active Group Admin for that specific group - Students who are
-    // group admins get access here too, scoped to their own group)
+    // 5.7 Statistics Module (Administrator and Lecturer)
     // -------------------------------------------------------------
-    // No role middleware here: access is per-group, not per-role, so it's
-    // enforced inside StatisticsController::groupStatistics() itself via
-    // authorizeGroupAccess(). A plain Student with no group-admin standing
-    // is rejected with a 403 from there.
-    Route::get('/groups/{group}/statistics', [StatisticsController::class, 'groupStatistics']);
+    // ADDED: the admin dashboard's "System Overview" panel calls this
+    // exact path (api('/statistics/system')) but no route ever existed
+    // for it — every request 404'd, so the panel silently stayed on its
+    // "Loading…" placeholder. Administrator-only, since it aggregates
+    // data across every group/user on the platform.
+    Route::get('/statistics/system', [StatisticsController::class, 'systemStatistics'])
+        ->middleware('role:Administrator');
+
+    // WIDENED: lecturers now get analytics for their own groups too, so the
+    // lecturer dashboard can link straight into this page (previously
+    // Administrator-only).
+    Route::get('/groups/{group}/statistics', [StatisticsController::class, 'groupStatistics'])
+        ->middleware('role:Administrator,Lecturer');
 
     // -------------------------------------------------------------
     // 5.8 ML Classification and Recommendation
@@ -179,11 +189,5 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/notifications/unread-count', [NotificationController::class, 'unreadCount']);
     Route::patch('/notifications/{notification}/read', [NotificationController::class, 'markRead']);
     Route::patch('/notifications/read-all', [NotificationController::class, 'markAllRead']);
-    
-
-Route::get('/topics/{topic}/download-pdf', [TopicController::class, 'downloadPdf'])
-    ->name('topics.download_pdf');
-    
-
 
 });

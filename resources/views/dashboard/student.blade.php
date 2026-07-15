@@ -53,9 +53,13 @@
     .msg-actions { display: flex; align-items: center; gap: 8px; margin: 4px 2px 0; font-size: 11.5px; }
     .msg-group.mine .msg-actions { flex-direction: row-reverse; }
     .msg-actions .reply-link,
-    .msg-actions .forward-link { color: var(--accent); cursor: pointer; }
+    .msg-actions .forward-link,
+    .msg-actions .flag-link { color: var(--accent); cursor: pointer; }
     .msg-actions .reply-link:hover,
-    .msg-actions .forward-link:hover { text-decoration: underline; }
+    .msg-actions .forward-link:hover,
+    .msg-actions .flag-link:hover { text-decoration: underline; }
+    .msg-actions .flag-link { color: #e11d48; }
+    .msg-actions .flagged-label { color: #e11d48; font-weight: 600; }
     .msg-actions .msg-time { color: var(--slate); }
 
     .composer {
@@ -72,16 +76,7 @@
     }
     .composer-send svg { width: 18px; height: 18px; }
 
-    /* Icon button specific layout matching setup adjustments */
-    .icon-btn {
-        display: inline-flex; align-items: center; justify-content: center;
-        background: transparent; border: none; color: var(--slate);
-        border-radius: 50%; width: 32px; height: 32px; cursor: pointer; padding: 0;
-    }
-    .icon-btn svg { width: 16px; height: 16px; flex-shrink: 0; }
-    .icon-btn:hover { background: rgba(0,0,0,.06); color: var(--accent); }
-
-    /* ---------- Forward message modal ---------- */
+    /* ---------- Share-to-social modal (legacy .forward-link class name kept for styling) ---------- */
     .modal-overlay {
         position: fixed; inset: 0; background: rgba(15, 23, 20, 0.45);
         display: none; align-items: center; justify-content: center; z-index: 1000; padding: 16px;
@@ -98,6 +93,17 @@
     .modal-box select {
         width: 100%; padding: 7px; border: 1px solid var(--line); border-radius: 6px; font-family: inherit;
     }
+
+    /* ---------- Share-to-social grid ---------- */
+    .share-grid {
+        display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
+    }
+    .share-btn {
+        display: flex; align-items: center; gap: 8px; padding: 10px 12px;
+        border: 1px solid var(--line); border-radius: 8px; background: #fff;
+        font-size: 13.5px; cursor: pointer; text-align: left;
+    }
+    .share-btn:hover { background: #f3f8f5; border-color: var(--accent); }
 </style>
 
 <div class="eyebrow">Student Dashboard</div>
@@ -106,7 +112,7 @@
 <div class="dash-shell">
     <nav class="dash-sidebar">
         <a href="#" class="dash-sidebar-item" data-target="panel-groups"><span class="icon">👥</span> Groups</a>
-        <a href="#" class="dash-sidebar-item" id="groupAdminTab" data-target="panel-group-admin"><span class="icon">🛡️</span> Group Admin</a>
+        <a href="#" class="dash-sidebar-item" id="groupAdminTab" data-target="panel-group-admin" style="display:none;"><span class="icon">🛡️</span> Group Admin</a>
         <a href="#" class="dash-sidebar-item" data-target="panel-grades"><span class="icon">🎓</span> My Grades</a>
         <a href="#" class="dash-sidebar-item" data-target="panel-quizzes"><span class="icon">📝</span> Quizzes</a>
         <a href="#" class="dash-sidebar-item" data-target="panel-recommendations"><span class="icon">✨</span> Recommendations</a>
@@ -114,32 +120,47 @@
     </nav>
 
     <div class="dash-main">
+        <!-- ================= GROUP ADMIN PANEL (students who admin a group) ================= -->
+        <!-- Only reachable at all when the student is an active group admin for
+             at least one group - see renderGroupAdminPanel(), which is what
+             actually decides whether the sidebar item/panel exist (not just CSS). -->
         <div class="dash-panel" id="panel-group-admin">
             <div class="section-title"><h2 style="margin:0;">Group Admin</h2></div>
             <p class="muted">Groups you administer. As a group admin you can view full group statistics, the same view a lecturer sees for their own groups.</p>
             <div id="groupAdminList"></div>
         </div>
 
+        <!-- ================= MY GROUPS ================= -->
         <div class="dash-panel" id="panel-groups">
             <div class="section-title"><h2 style="margin:0;">Groups</h2></div>
+
+            <!-- Single drill-down view: groupsBrowserContent's innerHTML is
+                 fully swapped by JS between the groups list, a group's
+                 topics, and a topic's posts (with a "Back" link), the same
+                 way the reference page navigates - one content area, not a
+                 separate div per state. -->
             <div class="card" id="groupsBrowserContent">Loading groups…</div>
         </div>
 
+        <!-- ================= MY GRADES ================= -->
         <div class="dash-panel" id="panel-grades">
             <div class="section-title"><h2 style="margin:0;">My Grades</h2></div>
             <div id="studentGrades" class="card muted">Loading your grades…</div>
         </div>
 
+        <!-- ================= QUIZZES ================= -->
         <div class="dash-panel" id="panel-quizzes">
             <div class="section-title"><h2 style="margin:0;">Published Quizzes</h2></div>
             <div id="studentQuizzes" class="card muted">Loading published quizzes…</div>
         </div>
 
+        <!-- ================= RECOMMENDATIONS ================= -->
         <div class="dash-panel" id="panel-recommendations">
             <div class="section-title"><h2 style="margin:0;">Recommended Topics</h2></div>
             <div id="recommendations" class="card muted">Loading recommendations…</div>
         </div>
 
+        <!-- ================= NOTIFICATIONS ================= -->
         <div class="dash-panel" id="panel-notifications">
             <div class="section-title"><h2 style="margin:0;">Notifications</h2></div>
             <div id="notifications" class="card muted">Loading notifications…</div>
@@ -147,20 +168,26 @@
     </div>
 </div>
 
-<div class="modal-overlay" id="forwardModalOverlay">
+<!-- One shared modal, reused for sharing any post/reply out to a social
+     platform, rather than building a separate picker per message. -->
+<div class="modal-overlay" id="shareModalOverlay">
     <div class="modal-box">
-        <h3 style="margin-top:0;">Forward message</h3>
-        <div class="modal-preview" id="forwardPreview"></div>
+        <h3 style="margin-top:0;">Share message</h3>
+        <div class="modal-preview" id="sharePreview"></div>
 
-        <label class="muted" style="display:block; margin:14px 0 4px;">Group</label>
-        <select id="forwardGroupSelect"></select>
+        <div class="share-grid" style="margin-top:16px;">
+            <button type="button" class="share-btn" onclick="shareToPlatform('whatsapp')">💬 WhatsApp</button>
+            <button type="button" class="share-btn" onclick="shareToPlatform('facebook')">📘 Facebook</button>
+            <button type="button" class="share-btn" onclick="shareToPlatform('twitter')">✖️ X / Twitter</button>
+            <button type="button" class="share-btn" onclick="shareToPlatform('telegram')">✈️ Telegram</button>
+            <button type="button" class="share-btn" onclick="shareToPlatform('linkedin')">💼 LinkedIn</button>
+            <button type="button" class="share-btn" onclick="shareToPlatform('instagram')">📷 Instagram</button>
+            <button type="button" class="share-btn" onclick="shareToPlatform('email')">✉️ Email</button>
+            <button type="button" class="share-btn" onclick="shareToPlatform('copy')">🔗 Copy text</button>
+        </div>
 
-        <label class="muted" style="display:block; margin:12px 0 4px;">Topic</label>
-        <select id="forwardTopicSelect"></select>
-
-        <div style="display:flex; gap:8px; margin-top:18px; justify-content:flex-end;">
-            <button class="btn secondary" type="button" onclick="closeForwardModal()">Cancel</button>
-            <button class="btn" type="button" onclick="confirmForward()">Forward</button>
+        <div style="display:flex; justify-content:flex-end; margin-top:18px;">
+            <button class="btn secondary" type="button" onclick="closeShareModal()">Close</button>
         </div>
     </div>
 </div>
@@ -175,6 +202,8 @@
     async function loadWelcome() {
         const me = await loadCurrentUser();
         if (!me) return;
+        // A lecturer/admin landing here directly (e.g. old bookmark) gets
+        // bounced to the dashboard that actually matches their role.
         if (window.CURRENT_ROLE !== 'student') {
             window.location.replace(window.CURRENT_ROLE === 'administrator' ? '/dashboard/admin' : '/dashboard/lecturer');
             return;
@@ -186,9 +215,10 @@
     let browseView = 'groups'; // 'groups' | 'topics' | 'posts'
     let activeBrowseGroupId = null;
     let activeBrowseGroupName = '';
+    let activeBrowseCanFlag = false; // true only while the open group is one this student administers
     let activeBrowseTopicId = null;
     let activeBrowseTopicTitle = '';
-    let currentTopicMessages = []; 
+    let currentTopicMessages = []; // index -> {author, content, id, type}, used by Reply/Share/Flag
 
     function escAttr(str) {
         return (str || '').replace(/'/g, "\\'");
@@ -202,6 +232,8 @@
         renderGroupsBrowser();
     }
 
+    // Swaps the ONE content div's innerHTML based on browseView, instead of
+    // keeping separate group/topic/post divs all in the DOM at once.
     function renderGroupsBrowser() {
         const el = document.getElementById('groupsBrowserContent');
         if (browseView === 'topics') {
@@ -264,9 +296,7 @@
             <a class="back-link" onclick="browseGoBack()">← Back to topics</a>
             <div style="display:flex; align-items:center; justify-content:space-between; margin: 12px 0 14px;">
                 <h3 style="margin:0;">${activeBrowseTopicTitle}</h3>
-                <button class="icon-btn" type="button" onclick="exportDashTopicPdf()" title="Download PDF Export">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                </button>
+                <button class="btn secondary" type="button" onclick="exportDashTopicPdf()">PDF</button>
             </div>
             <div class="chat-thread" id="dashPosts"><div class="muted">Loading messages…</div></div>
             <form class="composer" id="dashComposerForm">
@@ -283,6 +313,8 @@
         activeBrowseGroupId = groupId;
         activeBrowseGroupName = groupName;
         activeBrowseTopicId = null;
+        const group = myGroups.find(g => g.group_id === groupId);
+        activeBrowseCanFlag = !!(group && group.is_group_admin);
         browseView = 'topics';
         renderGroupsBrowser();
     }
@@ -321,8 +353,15 @@
     }
     window.joinGroupInline = joinGroupInline;
 
+    // Only groups where the API says this user can actually view statistics
+    // (Administrator, group owner, or active group admin - see
+    // GroupController::index) get a card here; everyone else never even
+    // sees the "Group Admin" item in the sidebar.
     function renderGroupAdminPanel(groups) {
         const adminGroups = groups.filter(g => g.is_group_admin);
+        const tab = document.getElementById('groupAdminTab');
+
+        tab.style.display = adminGroups.length ? 'flex' : 'none';
 
         document.getElementById('groupAdminList').innerHTML = adminGroups.map(g => `
             <div class="card">
@@ -332,7 +371,7 @@
                     <a class="btn btn-secondary" href="/groups/${g.group_id}/statistics" style="padding: 4px 10px; font-size: 13px;">View group statistics</a>
                 </div>
             </div>
-        `).join('') || '<div class="empty-state">You are not an active admin for any group yet.</div>';
+        `).join('');
     }
 
     function timeOnly(dt) {
@@ -370,6 +409,8 @@
         const myId = window.CURRENT_USER ? window.CURRENT_USER.user_id : null;
         const posts = t.posts || [];
 
+        // Reset the lookup table that Share/Flag use to find a message's full
+        // content by index, without stuffing raw/quoted text into onclick attrs.
         currentTopicMessages = [];
 
         container.innerHTML = posts.map(p => {
@@ -381,18 +422,24 @@
                 const replyMine = r.author_id === myId;
                 const replySide = replyMine ? 'mine' : 'theirs';
                 const replyAuthorName = r.author ? (r.author.full_name || r.author.name) : 'User';
-                return renderMsgGroup(replySide, replyAuthorName, r.content, timeOnly(r.replied_at || r.created_at), true);
+                return renderMsgGroup(replySide, replyAuthorName, r.content, timeOnly(r.replied_at || r.created_at), true, r.reply_id, 'reply');
             }).join('');
 
-            return renderMsgGroup(side, authorName, p.content, timeOnly(p.posted_at || p.created_at), false) + repliesHtml;
+            return renderMsgGroup(side, authorName, p.content, timeOnly(p.posted_at || p.created_at), false, p.post_id, 'post') + repliesHtml;
         }).join('') || '<div class="muted">No messages yet in this topic — start the discussion below.</div>';
 
         container.scrollTop = container.scrollHeight;
     }
 
-    function renderMsgGroup(side, authorName, content, time, isReply) {
+    // One bubble + its Reply/Share/Flag/timestamp row. `isReply` just adds the
+    // connecting-line modifier class — no extra wrapper div needed.
+    function renderMsgGroup(side, authorName, content, time, isReply, id, type) {
         const msgIndex = currentTopicMessages.length;
-        currentTopicMessages.push({ author: authorName, content });
+        currentTopicMessages.push({ author: authorName, content, id, type });
+
+        const flagLink = activeBrowseCanFlag
+            ? `<a class="flag-link" data-msg-index="${msgIndex}" onclick="flagMessage(${msgIndex})">Flag</a>`
+            : '';
 
         return `
             <div class="msg-group ${side}${isReply ? ' is-reply' : ''}">
@@ -402,13 +449,16 @@
                 </div>
                 <div class="msg-actions">
                     <a class="reply-link" onclick="focusComposerWithMention('${authorName.replace(/'/g, "\\'")}')">Reply</a>
-                    <a class="forward-link" onclick="openForwardModal(${msgIndex})">Forward</a>
+                    <a class="forward-link" onclick="openShareModal(${msgIndex})">Share</a>
+                    ${flagLink}
                     <span class="msg-time">${time}</span>
                 </div>
             </div>
         `;
     }
 
+    // Clicking "Reply" under a message jumps to the composer and, if it's
+    // empty, pre-fills an @mention of who's being replied to.
     function focusComposerWithMention(authorName) {
         const textarea = document.getElementById('dashComposerInput');
         if (!textarea) return;
@@ -448,65 +498,122 @@
     }
     window.exportDashTopicPdf = exportDashTopicPdf;
 
-    /* ---------- Forward message modal ---------- */
-    let forwardMessageIndex = null;
+    /* ---------- Flagging (lecturers always; students only in groups they admin) ---------- */
+    async function flagMessage(index) {
+        const msg = currentTopicMessages[index];
+        if (!msg || !msg.id) return;
+        if (!window.confirm('Flag this message for moderator review?')) return;
 
-    function openForwardModal(msgIndex) {
+        const endpoint = msg.type === 'reply' ? `/replies/${msg.id}/flag` : `/posts/${msg.id}/flag`;
+        const res = await api(endpoint, { method: 'POST' });
+        if (res) {
+            const link = document.querySelector(`.flag-link[data-msg-index="${index}"]`);
+            if (link) link.outerHTML = '<span class="flagged-label">Flagged</span>';
+        } else {
+            alert('Failed to flag this message.');
+        }
+    }
+    window.flagMessage = flagMessage;
+
+    /* ---------- Share-to-social modal ---------- */
+    let shareMessageIndex = null;
+
+    function openShareModal(msgIndex) {
         const msg = currentTopicMessages[msgIndex];
         if (!msg) return;
-        forwardMessageIndex = msgIndex;
+        shareMessageIndex = msgIndex;
 
-        document.getElementById('forwardPreview').textContent = `${msg.author}: ${msg.content}`;
+        document.getElementById('sharePreview').textContent = `${msg.author}: ${msg.content}`;
+        document.getElementById('shareModalOverlay').classList.add('open');
+    }
+    window.openShareModal = openShareModal;
 
-        const groupSelect = document.getElementById('forwardGroupSelect');
-        groupSelect.innerHTML = myGroups.map(g => `<option value="${g.group_id}">${g.name}</option>`).join('')
-            || '<option value="">You have not joined any groups</option>';
-        groupSelect.onchange = () => populateForwardTopics(groupSelect.value);
+    function closeShareModal() {
+        document.getElementById('shareModalOverlay').classList.remove('open');
+        shareMessageIndex = null;
+    }
+    window.closeShareModal = closeShareModal;
 
-        document.getElementById('forwardModalOverlay').classList.add('open');
-
-        if (myGroups.length) {
-            populateForwardTopics(myGroups[0].group_id);
-        } else {
-            document.getElementById('forwardTopicSelect').innerHTML = '';
+    async function copyTextToClipboard(text) {
+        try {
+            await navigator.clipboard.writeText(text);
+        } catch {
+            const textarea = document.createElement('textarea');
+            textarea.value = text;
+            textarea.style.position = 'fixed';
+            textarea.style.opacity = '0';
+            document.body.appendChild(textarea);
+            textarea.select();
+            document.execCommand('copy');
+            textarea.remove();
         }
     }
-    window.openForwardModal = openForwardModal;
 
-    async function populateForwardTopics(groupId) {
-        const topicSelect = document.getElementById('forwardTopicSelect');
-        if (!groupId) { topicSelect.innerHTML = ''; return; }
-        topicSelect.innerHTML = '<option>Loading…</option>';
+    async function shareToPlatform(platform) {
+        if (shareMessageIndex === null) return;
+        const msg = currentTopicMessages[shareMessageIndex];
+        if (!msg) return;
 
-        const data = await api(`/groups/${groupId}/topics`);
-        const topics = (data && (data.data || data)) || [];
-        topicSelect.innerHTML = topics.map(t => `<option value="${t.topic_id}">${t.title}</option>`).join('')
-            || '<option value="">No topics in this group</option>';
-    }
+        const text = `${msg.author}: ${msg.content}`;
+        // Best-effort link back to the topic the message lives in, so
+        // platforms that expect a URL (Facebook, LinkedIn, Telegram…) have
+        // something to attach the quoted text to.
+        const pageUrl = activeBrowseTopicId ? `${window.location.origin}/topics/${activeBrowseTopicId}` : window.location.origin;
+        const encodedText = encodeURIComponent(text);
+        const encodedUrl = encodeURIComponent(pageUrl);
 
-    function closeForwardModal() {
-        document.getElementById('forwardModalOverlay').classList.remove('open');
-        forwardMessageIndex = null;
-    }
-    window.closeForwardModal = closeForwardModal;
-
-    async function confirmForward() {
-        if (forwardMessageIndex === null) return;
-        const msg = currentTopicMessages[forwardMessageIndex];
-        const topicId = document.getElementById('forwardTopicSelect').value;
-        if (!msg || !topicId) return;
-
-        const forwardedContent = `Forwarded from ${msg.author}:\n${msg.content}`;
-        await api(`/topics/${topicId}/posts`, { method: 'POST', body: { content: forwardedContent, exclude_user_ids: [] } });
-
-        closeForwardModal();
-
-        if (activeBrowseTopicId && Number(topicId) === activeBrowseTopicId) {
-            loadBrowsePosts();
+        let shareLink = null;
+        switch (platform) {
+            case 'whatsapp':
+                shareLink = `https://wa.me/?text=${encodedText}%20${encodedUrl}`;
+                break;
+            case 'facebook':
+                shareLink = `https://www.facebook.com/sharer/sharer.php?u=${encodedUrl}&quote=${encodedText}`;
+                break;
+            case 'twitter':
+                shareLink = `https://twitter.com/intent/tweet?text=${encodedText}&url=${encodedUrl}`;
+                break;
+            case 'telegram':
+                shareLink = `https://t.me/share/url?url=${encodedUrl}&text=${encodedText}`;
+                break;
+            case 'linkedin':
+                shareLink = `https://www.linkedin.com/sharing/share-offsite/?url=${encodedUrl}`;
+                break;
+            case 'email':
+                shareLink = `mailto:?subject=${encodeURIComponent('Shared from ' + msg.author)}&body=${encodedText}%20${encodedUrl}`;
+                break;
+            case 'instagram':
+                // Instagram has no public "share with pre-filled text" web
+                // endpoint, so the best available flow is: copy the text,
+                // then hand off to Instagram for the user to paste it in.
+                await copyTextToClipboard(text);
+                alert('Text copied — paste it into Instagram (DM, Story, or caption).');
+                shareLink = 'https://www.instagram.com/';
+                break;
+            case 'copy':
+                await copyTextToClipboard(`${text} ${pageUrl}`);
+                alert('Copied to clipboard.');
+                break;
         }
-    }
-    window.confirmForward = confirmForward;
 
+        // Best-effort analytics log against the existing share endpoint;
+        // only applies to top-level posts (there's no reply-share route),
+        // and failures here shouldn't block the actual share action.
+        if (msg.type === 'post' && msg.id) {
+            api(`/posts/${msg.id}/share`, { method: 'POST', body: { platform } }).catch(() => {});
+        }
+
+        if (shareLink) {
+            window.open(shareLink, '_blank', 'noopener');
+        }
+
+        closeShareModal();
+    }
+    window.shareToPlatform = shareToPlatform;
+
+    // Delegated: both forms are re-created whenever renderGroupsBrowser()
+    // swaps views, so we listen on the always-present container instead of
+    // binding directly to elements that come and go.
     document.getElementById('groupsBrowserContent').addEventListener('submit', async (e) => {
         if (e.target && e.target.id === 'createGroupForm') {
             e.preventDefault();

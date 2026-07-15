@@ -38,6 +38,10 @@
             <div class="section-title"><h2 style="margin:0;">Inactivity Warnings</h2></div>
             <p class="muted">Users flagged for inactivity, most recent first.</p>
             <div id="warningsList" class="card muted">Loading…</div>
+
+            <div class="section-title" style="margin-top: 22px;"><h2 style="margin:0;">Flagged Content</h2></div>
+            <p class="muted">Posts and replies flagged by lecturers or group admins for moderator review.</p>
+            <div id="flaggedContentList" class="card muted">Loading…</div>
         </div>
     </div>
 </div>
@@ -58,6 +62,7 @@
     }
 
     async function loadSystemStats() {
+        // Matches GET /statistics/system (role:Administrator) in routes/api.php
         const stats = await api('/statistics/system');
         if (!stats) return;
 
@@ -90,12 +95,16 @@
     }
 
     async function loadGroups() {
+        // Matches GET /groups in routes/api.php
         const data = await api('/groups');
         const groups = (data && (data.data || data)) || [];
 
+        // Group name is plain text (no link into the general group/posts
+        // page, which is where messaging lives) — Statistics and Gradebook
+        // stay as admin-facing actions.
         document.getElementById('groupsList').innerHTML = groups.map(g => `
             <div class="card">
-                <strong><a href="/groups/${g.group_id}">${g.name}</a></strong>
+                <strong>${g.name}</strong>
                 <div class="muted">${g.description ?? ''} · ${g.members_count ?? 0} members · ${g.topics_count ?? 0} topics</div>
                 <div style="margin-top: 8px;">
                     <a class="btn btn-secondary" href="/groups/${g.group_id}/statistics" style="padding: 4px 10px; font-size: 13px;">Statistics</a>
@@ -106,7 +115,7 @@
     }
 
     async function loadWarnings() {
-        const tbody = document.getElementById('warningsBody');
+        // Matches GET /moderation/warnings in routes/api.php
         const responseData = await api('/moderation/warnings');
         let warnings = [];
         if (Array.isArray(responseData)) warnings = responseData;
@@ -150,6 +159,7 @@
         const warningId = e.target.getAttribute('data-id');
         e.target.disabled = true;
         e.target.textContent = 'Processing…';
+        // Matches POST /moderation/warnings/{warning}/resolve in routes/api.php
         const response = await api(`/moderation/warnings/${warningId}/resolve`, { method: 'POST' });
         if (response) {
             e.target.parentElement.innerHTML = '<span style="color: var(--accent); font-weight:600;">Resolved</span>';
@@ -159,12 +169,72 @@
         }
     });
 
+    // Reuses GET /notifications (5.10 Notification Module) filtered down to
+    // flag-related entries, since there's no dedicated "list flagged
+    // content" route in routes/api.php. PostController::flag() and
+    // ReplyController::flag() both notify every Administrator ('Post
+    // Flagged' / 'Reply Flagged'), which is what this filter matches on.
+    // Rendered as an inline table (same pattern as loadWarnings above) so
+    // it sits consistently inside the Inactivity Warnings panel.
+    async function loadFlaggedContent() {
+        const data = await api('/notifications');
+        const notifications = (data && (data.data || data)) || [];
+        const flagged = notifications.filter(n =>
+            !n.is_read && ((n.type || '').toLowerCase().includes('flag') || (n.message || '').toLowerCase().includes('flag'))
+        );
+
+        if (!flagged.length) {
+            document.getElementById('flaggedContentList').innerHTML = '<div class="empty-state">No flagged content right now.</div>';
+            return;
+        }
+
+        document.getElementById('flaggedContentList').innerHTML = `
+            <table id="flaggedTable">
+                <thead><tr><th>Type</th><th>Details</th><th>Flagged</th><th></th></tr></thead>
+                <tbody id="flaggedBody"></tbody>
+            </table>
+        `;
+
+        document.getElementById('flaggedBody').innerHTML = flagged.map(n => {
+            const id = n.notification_id ?? n.id;
+            const dateStr = n.created_at ? new Date(n.created_at).toLocaleString() : 'N/A';
+            const kind = (n.type || 'Content').replace(' Flagged', '');
+            return `
+                <tr id="flag_notif_${id}">
+                    <td><span class="badge">${kind}</span></td>
+                    <td>${n.message}</td>
+                    <td>${dateStr}</td>
+                    <td><button class="btn dismiss-flag-btn" style="padding:3px 8px; font-size:12px;" data-id="${id}">Dismiss</button></td>
+                </tr>
+            `;
+        }).join('');
+    }
+
+    document.addEventListener('click', async (e) => {
+        if (!e.target.classList.contains('dismiss-flag-btn')) return;
+        const id = e.target.getAttribute('data-id');
+        e.target.disabled = true;
+        e.target.textContent = 'Processing…';
+        // Matches PATCH /notifications/{notification}/read in routes/api.php
+        const response = await api(`/notifications/${id}/read`, { method: 'PATCH' });
+        if (response) {
+            document.getElementById(`flag_notif_${id}`).remove();
+            if (!document.querySelectorAll('#flaggedBody tr').length) {
+                document.getElementById('flaggedContentList').innerHTML = '<div class="empty-state">No flagged content right now.</div>';
+            }
+        } else {
+            e.target.disabled = false;
+            e.target.textContent = 'Dismiss';
+        }
+    });
+
     async function init() {
         initDashSidebar();
         await loadWelcome();
         loadSystemStats();
         loadGroups();
         loadWarnings();
+        loadFlaggedContent();
     }
 
     init();
