@@ -35,11 +35,12 @@
             <input type="password" id="password" minlength="8" required>
             <label for="password_confirmation">Confirm password</label>
             <input type="password" id="password_confirmation" minlength="8" required>
-            <label for="role">I am a</label>
-            <select id="role">
-                <option value="Student">Student</option>
-                <option value="Lecturer">Lecturer</option>
-            </select>
+
+            <div class="rules" style="margin-bottom: 14px;">
+                Every new account starts as a <strong>Student</strong>. If you're a
+                lecturer, contact your system administrator after registering and
+                they'll assign your account the Lecturer role.
+            </div>
 
             <div class="rules">
                 By joining, you agree to keep discussion on-topic, avoid flooding
@@ -97,7 +98,6 @@
                     email: document.getElementById('email').value,
                     password: document.getElementById('password').value,
                     password_confirmation: document.getElementById('password_confirmation').value,
-                    role: document.getElementById('role').value,
                     rules_accepted: document.getElementById('rules_accepted').checked,
                 }),
             });
