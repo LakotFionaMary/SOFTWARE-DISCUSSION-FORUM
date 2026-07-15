@@ -3,10 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Models\Post;
-use App\Models\Topic;
-use App\Models\TopicRecommendation;
-use App\Services\TopicClassifierService;
+use App\Services\RecommendationService;
 use Illuminate\Http\Request;
 
 /**
@@ -14,11 +11,27 @@ use Illuminate\Http\Request;
  *
  * Topic classification happens automatically on creation (see
  * TopicController::store). This controller covers the recommendation
- * feed: content-based + collaborative filtering against unseen topics.
+ * feed: a persistent, leaderboard-style ranking of topics in the user's
+ * joined groups, scored by relevance to their reply history — see
+ * RecommendationService::generateForUser() for the actual scoring logic
+ * (category activity + title content-similarity via the Flask ML
+ * service).
+ *
+ * Re-ranks live on every load, since the leaderboard includes topics the
+ * user has already replied to (replying re-ranks a topic rather than
+ * removing it) — this is intentionally NOT a cached/stale read.
+ *
+ * (A previous version of this controller recomputed scores locally using
+ * TopicClassifierService::relevanceScore(), a placeholder formula that
+ * ignored the ML service and title content entirely. Removed in favor of
+ * routing through RecommendationService, which is also what keeps
+ * recommendations fresh in the background after each post — see
+ * App\Jobs\GenerateUserRecommendations, dispatched from
+ * PostController::store.)
  */
 class RecommendationController extends Controller
 {
-    public function __construct(private TopicClassifierService $classifier)
+    public function __construct(private RecommendationService $recommendations)
     {
     }
 
@@ -27,27 +40,15 @@ class RecommendationController extends Controller
     {
         $user = $request->user();
 
-        $seenTopicIds = Post::where('author_id', $user->user_id)->pluck('topic_id');
-        $categoriesEngaged = Topic::whereIn('topic_id', $seenTopicIds)->pluck('category')->countBy();
+        // Re-rank live, every load — this is the leaderboard behavior:
+        // topics already replied to stay in the list, just re-scored.
+        $this->recommendations->generateForUser($user);
 
-        $groupIds = $user->groups()->pluck('groups.group_id');
-
-        $unseenTopics = Topic::whereIn('group_id', $groupIds)
-            ->whereNotIn('topic_id', $seenTopicIds)
-            ->latest()
-            ->limit(50)
+        $recommendations = $user->topicRecommendations()
+            ->with('topic')
+            ->orderByDesc('relevance_score')
             ->get();
 
-        $recommendations = $unseenTopics->map(function (Topic $topic) use ($user, $categoriesEngaged) {
-            $matches = $categoriesEngaged->get($topic->category, 0);
-            $score = $this->classifier->relevanceScore($matches, max($categoriesEngaged->sum(), 1));
-
-            return TopicRecommendation::updateOrCreate(
-                ['user_id' => $user->user_id, 'topic_id' => $topic->topic_id],
-                ['relevance_score' => $score, 'generated_at' => now()]
-            );
-        })->sortByDesc('relevance_score')->values()->take(10);
-
-        return response()->json($recommendations->load('topic'));
+        return response()->json($recommendations);
     }
 }

@@ -1,0 +1,201 @@
+ID,Language,Title,Description,Code,Snippet Type,Difficulty
+1,Python,Hello World,Prints Hello World,"print(""Hello, World!"")",Simple,Beginner
+2,JavaScript,Array Sum,Calculates sum of array,"const sum = arr.reduce((a, b) => a + b, 0);",Simple,Beginner
+3,C++,Factorial,Finds factorial of number,int fact(int n){ return n==0?1:n*fact(n-1);},Function,Intermediate
+4,Java,Palindrome,Check if string is palindrome,"String str = ""madam""; ...",Method,Intermediate
+5,Python,Fibonacci,Generates fibonacci,...def fib(n): ...,Function,Intermediate
+6,Ruby,Reverse String,Reverses input string,"puts ""hello"".reverse",Simple,Beginner
+7,PHP,Form Validator,Validates form fields,if(isset($_POST['submit'])){...},Function,Advanced
+8,C#,File Read,Reads a file content,string content = File.ReadAllText(path);,Method,Intermediate
+9,Go,HTTP Server,Simple HTTP server in Go,"http.ListenAndServe("":8080"", nil)",Snippet,Intermediate
+10,Swift,Loop Demo,Print numbers 1 to 5,for i in 1...5 { print(i) },Loop,Beginner
+11,Python,Regex Email,Check if email valid,"re.match(r""..."", email)",Function,Intermediate
+12,Java,Binary Search,Find number in sorted list,int binarySearch(...),Function,Intermediate
+13,JavaScript,Debounce Function,Throttle function calls,"function debounce(fn, delay) { ... }",Utility,Advanced
+14,Python,Sort Dict,Sort a dictionary by value,"sorted(d.items(), key=lambda x:x[1])",Snippet,Intermediate
+15,C++,Class Demo,Define a class,class Car { public: string model; };,Class,Intermediate
+16,C#,Login Form,Create a login GUI,... Windows Forms code ...,GUI,Advanced
+17,Go,Goroutines,Run functions concurrently,go myFunc(),Concurrency,Advanced
+18,PHP,Image Upload,Upload image securely,...move_uploaded_file(...),Function,Advanced
+19,Swift,CoreData Init,Initialize CoreData stack,let context = ...,Persistence,Advanced
+20,JavaScript,Event Listener,Attach click event,"btn.addEventListener('click', ...)",Event,Beginner
+21,Python,List Comprehension,Compact way to create lists,[x*x for x in range(10)],Snippet,Intermediate
+22,Java,Multithreading,Create thread using Runnable,class MyThread implements Runnable { ... },Concurrency,Advanced
+23,JavaScript,Async Await,Handle async code cleanly,async function fetchData() { ... },Function,Intermediate
+24,C++,Vector Sort,Sort vector with custom comparator,"sort(vec.begin(), vec.end(), cmp);",Function,Intermediate
+25,Ruby,Block Example,Yield block with method,def my_method; yield; end,Function,Intermediate
+26,PHP,Email Sender,Send email using PHP,"mail($to, $subj, $msg, $headers);",Utility,Intermediate
+27,Go,Struct Demo,Define and use a struct,type User struct { Name string },Struct,Intermediate
+28,C#,Tuple Return,Return multiple values with tuple,"return (name, age);",Function,Intermediate
+29,Swift,Optional Binding,Safely unwrap optional values,if let name = name { ... },Control Flow,Intermediate
+30,Python,Try Except,Handle exceptions gracefully,try: ... except Exception as e: ...,Error Handling,Beginner
+31,Java,Streams API,Filter and map list with streams,list.stream().filter(...).map(...);,Function,Advanced
+32,JavaScript,Local Storage,Store data in browser,"localStorage.setItem(""key"", ""value"");",Utility,Intermediate
+33,C++,Smart Pointer,Use unique_ptr to manage memory,std::unique_ptr<int> ptr(new int);,Memory,Advanced
+34,Ruby,Hashes,Define and iterate hash,"map = {a: 1, b: 2}; map.each {...}",Collection,Beginner
+35,PHP,Sessions,Start and use session,"session_start(); $_SESSION['user'] = ""X"";",State,Beginner
+36,Go,Slice Append,Add elements to slice,"users = append(users, ""Tom"")",Data,Intermediate
+37,C#,LINQ Query,Use LINQ to query collection,var result = from x in list where x > 0 select x;,Query,Advanced
+38,Swift,Enum Cases,Define and switch on enums,"enum Role { case Admin, User }",Control Flow,Intermediate
+39,Python,Zip Function,Combine multiple lists together,"for a, b in zip(l1, l2): ...",Snippet,Intermediate
+40,Java,Serialization,Serialize an object,ObjectOutputStream.writeObject(obj);,IO,Advanced
+41,JavaScript,Set Object,Use Set to avoid duplicates,const ids = new Set([...]);,Collection,Intermediate
+42,C++,Lambda Function,Create inline function,"auto add = [](int x, int y){ return x+y; };",Function,Advanced
+43,Ruby,Regex Match,Check if string matches regex,abc =~ /a.c/,Function,Intermediate
+44,PHP,File Upload Securely,Handle user-uploaded files,move_uploaded_file(...);,Security,Advanced
+45,Go,Channel Sync,Communicate with goroutines using channel,ch := make(chan int); Concurrency,Advanced,
+46,C#,Exception Throw,Custom exception handling,"throw new ArgumentException(""..."");",Error Handling,Intermediate
+47,Swift,Array Filter,Filter array elements,let result = arr.filter { $0 > 10 },Collection,Intermediate
+48,Python,Datetime Now,Get current date and time,import datetime; datetime.now(),Utility,Beginner
+49,Java,Abstract Class,Define an abstract method,abstract class Shape { ... },OOP,Advanced
+50,JavaScript,Map Function,Transform array using map,arr.map(x => x * 2);,Function,Intermediate
+51,C++,Const Reference,Pass large object efficiently,void print(const MyObj& obj);,Performance,Intermediate
+52,Ruby,Class Inheritance,Inherit class functionality,class Dog < Animal; end,OOP,Intermediate
+53,PHP,MySQLi Query,Run SQL SELECT,"query(""SELECT * FROM users"");",Database,Intermediate
+54,Go,Error Handling,Check and return error,err := doSomething(); if err != nil { return err },Error Handling,Intermediate
+55,C#,Dictionary,Add and get values from dictionary,"dict.Add(""key"", ""value"");",Collection,Beginner
+56,Swift,Guard Statement,Early exit for nil value,guard let user = user else { return },Error Handling,Intermediate
+57,Python,Enumerate,Iterate with index,"for i, val in enumerate(list): ...",Loop,Intermediate
+58,Java,Inner Class,Define a class inside another,class Outer { class Inner { ... } },Nesting,Advanced
+59,JavaScript,Destructuring,Get values from object,"const {name, age} = user;",Syntax,Intermediate
+60,C++,Static Variable,Persist value across calls,static int count = 0;,State,Intermediate
+61,Ruby,Begin Rescue,Error handling block,begin ... rescue ... end,Error Handling,Intermediate
+62,PHP,JSON Encode,Convert array to JSON,json_encode($arr);,Utility,Beginner
+63,Go,Map Usage,Key-value storage in Go,"m := map[string]int{""a"":1}",Collection,Beginner
+64,C#,Async Task,Async programming with Task,await GetDataAsync();,Concurrency,Advanced
+65,Swift,Closure,Anonymous function definition,"let greet = { print(""Hi"") }",Function,Intermediate
+66,Python,Args Kwargs,Flexible function arguments,"def func(*args, **kwargs): ...",Function,Advanced
+67,Java,Interface Define,Define contract for class,interface Drawable { void draw(); },OOP,Intermediate
+68,JavaScript,Promise Chain,Chain multiple promises,promise.then(...).then(...);,Async,Intermediate
+69,C++,Template Class,Generic class definition,template<typename T> class Stack { ... };,Generic,Advanced
+70,Ruby,Symbols,Fast identifiers,":name, :id",Syntax,Beginner
+71,PHP,Header Redirect,Redirect user to another page,"header(""Location: page.php"");",Utility,Beginner
+72,Go,Defer Statement,Defer function execution,"defer fmt.Println(""Done"")",Control Flow,Intermediate
+73,C#,Properties,Get and set class data,public string Name { get; set; },OOP,Intermediate
+74,Swift,DispatchQueue,Run async code with GCD,DispatchQueue.main.async { ... },Concurrency,Advanced
+75,Python,Lambda Sort,Custom sort key with lambda,"sorted(list, key=lambda x: x[1])",Function,Intermediate
+76,Java,Varargs,Accept multiple arguments,void log(String... msgs) { ... },Function,Intermediate
+77,JavaScript,Template Literals,Multi-line + embedded vars,"`Hello, ${name}`",Syntax,Beginner
+78,C++,Enum Scope,Use scoped enums,"enum class Status { OK, FAIL };",Syntax,Intermediate
+79,Ruby,Method Missing,Dynamic method handling,def method_missing(...),Metaprogramming,Advanced
+80,PHP,CSRF Token,Add CSRF protection,token = md5(session_id());,Security,Advanced
+81,Go,JSON Marshal,Convert struct to JSON,json.Marshal(data),IO,Intermediate
+82,C#,Regex Match,Find pattern in string,"Regex.Match(text, @""\d+"")",Function,Intermediate
+83,Swift,Optional Chaining,Safe property access,user?.profile?.email,Syntax,Intermediate
+84,Python,List Slice,Access part of list,arr[1:4],Snippet,Beginner
+85,Java,File Read,Read file line-by-line,BufferedReader br = new BufferedReader(...);,IO,Intermediate
+86,JavaScript,Fetch API,Get data from URL,fetch(url).then(...);,Network,Intermediate
+87,C++,Bit Manipulation,"Set, clear, toggle bits",x |= (1<<2);,Performance,Advanced
+88,Ruby,Yield with Block,Call block passed to method,yield if block_given?,Control Flow,Intermediate
+89,PHP,INI Settings,Read config using ini file,"parse_ini_file(""config.ini"");",Config,Intermediate
+90,Go,Interfaces,Implement interface in Go,type Reader interface { Read() },OOP,Advanced
+91,C#,Index Initializer,Initialize array with index,"var arr = new[] { [0] = ""a"", [2] = ""b"" };",Syntax,Intermediate
+92,Swift,Auto Layout,Constraint-based layout,NSLayoutConstraint.activate([...]),UI,Advanced
+93,Python,With Statement,Safe resource management,with open(file) as f: ...,Context,Intermediate
+94,Java,Generic Method,Generic method example,<T> T identity(T val) { return val; },Generic,Advanced
+95,JavaScript,Throttle Function,Limit function calls,"function throttle(fn, limit) { ... }",Utility,Advanced
+96,C++,RAII,Manage resources via destructor,class File { ~File() { ... } };,Design Pattern,Advanced
+97,Ruby,Proc vs Lambda,Difference between Proc and Lambda,"proc {}, lambda {}",Function,Advanced
+98,PHP,APCu Cache,Store data in memory,"apcu_store('key', $data);",Performance,Advanced
+99,Go,Panic Recover,Handle panics with recover,defer func(){ recover() }(),Error Handling,Advanced
+100,C#,Event Handling,Define and trigger event,public event EventHandler MyEvent;,Event,Intermediate
+101,Python,List Flatten,Flatten nested list,[item for sublist in lst for item in sublist],Function,Intermediate
+102,Java,Class Reflection,Inspect class structure,Class<?> clazz = obj.getClass();,Utility,Advanced
+103,JavaScript,Clipboard Copy,Copy text to clipboard,"navigator.clipboard.writeText(""Hello"");",Utility,Intermediate
+104,C++,Exception Handling,Catch runtime errors,try { ... } catch (...) { ... },Error Handling,Intermediate
+105,Ruby,Attr Accessor,Define getter/setter,attr_accessor :name,OOP,Beginner
+106,PHP,HTTP Headers,Send custom headers,"header(""X-App-Version: 1.0"");",Utility,Intermediate
+107,Go,HTTP Post Request,Send POST using http package,"http.Post(url, ""application/json"", body)",Network,Intermediate
+108,C#,Reflection Usage,Read object properties at runtime,Type t = obj.GetType();,Utility,Advanced
+109,Swift,Protocol Example,Define and implement protocol,protocol Walkable { func walk() },Interface,Intermediate
+110,Python,Unpack Arguments,Use *args and **kwargs,"def greet(*args, **kwargs): ...",Function,Intermediate
+111,Java,Enum With Method,Add method to enum,"enum Role { ADMIN; String label() { return ""Admin""; } }",OOP,Advanced
+112,JavaScript,DOM Create,Element creation on DOM,"const div = document.createElement(""div"");",UI,Beginner
+113,C++,Multimap Store,Store duplicate keys in map,"std::multimap<int, string> mm;",Collection,Advanced
+114,Ruby,Array Union,Merge arrays without duplicates,arr1 | arr2,Collection,Intermediate
+115,PHP,MIME Detection,Get file MIME type,mime_content_type($file);,Utility,Intermediate
+116,Go,Command Line Arg,Read CLI arguments,os.Args[1],CLI,Beginner
+117,C#,Switch Expression,Use new switch syntax,"var result = x switch { 1 => ""One"", _ => ""Other"" };",Syntax,Intermediate
+118,Swift,Error Throwing,Define and throw errors,enum MyError: Error { case fail },Error Handling,Intermediate
+119,Python,Set Operations,Find set intersection,s1 & s2,Set,Beginner
+120,Java,Daemon Thread,Make thread run in background,t.setDaemon(true);,Concurrency,Advanced
+121,JavaScript,Blob Download,Download string as file,const blob = new Blob(...);,IO,Intermediate
+122,C++,Iterator Loop,Iterate using iterator,for (auto it = v.begin(); it != v.end(); ++it),Loop,Intermediate
+123,Ruby,Splat Operator,Pass variable args,*args,Syntax,Intermediate
+124,PHP,Sanitize Input,Remove harmful code,"filter_var($str, FILTER_SANITIZE_STRING);",Security,Intermediate
+125,Go,Struct Tag Add,Tag fields for JSON output,"`json:""name""`",Struct,Intermediate
+126,C#,TryParse Example,Validate and parse value,"if(int.TryParse(input, out val))",Validation,Beginner
+127,Swift,Unit Testing,Basic unit test method,func testExample() throws { ... },Testing,Intermediate
+128,Python,JSON Parse,Convert JSON to dict,json.loads(json_str),Utility,Beginner
+129,Java,Volatile Keyword,Ensure visibility across threads,volatile boolean running = true;,Concurrency,Advanced
+130,JavaScript,Intersection Observer,Detect element in viewport,new IntersectionObserver(callback);,UI,Advanced
+131,C++,Move Semantics,Transfer ownership,std::move(obj);,Performance,Advanced
+132,Ruby,Range Object,Create inclusive range,(1..5),Loop,Beginner
+133,PHP,Ini Set,Config runtime option,"ini_set('max_execution_time', 300);",Config,Intermediate
+134,Go,Reader Interface,Read from any stream,type Reader interface { Read(p []byte) },Interface,Advanced
+135,C#,BackgroundWorker,Run task in background,var bg = new BackgroundWorker();,Concurrency,Advanced
+136,Swift,SwiftUI Button,Create button with action,"Button(""Tap me"") { ... }",UI,Intermediate
+137,Python,Counter Module,Count element frequency,from collections import Counter,Utility,Intermediate
+138,Java,Thread Join,Wait for thread to finish,t.join();,Thread,Intermediate
+139,JavaScript,WebSocket Client,Connect to WebSocket,server = new WebSocket(url);,Network,Advanced
+140,C++,Namespace Alias,Shorten long namespaces,namespace io = std::iostream;,Syntax,Intermediate
+141,Ruby,Keyword Args,Method with named params,"def info(name:, age:)",Function,Intermediate
+142,PHP,Password Hash,Hash secure password,"password_hash($pwd, PASSWORD_DEFAULT);",Security,Advanced
+143,Go,Custom Error,Define and return error,"errors.New(""Custom error"")",Error Handling,Intermediate
+144,C#,Out Parameter,Return multiple values,void GetInfo(out int id) { ... },Function,Intermediate
+145,Swift,Combine Publisher,Handle streams using Combine,Just(10).map { $0 * 2 },Reactive,Advanced
+146,Python,List Filter,Filter list with lambda,"list(filter(lambda x: x > 0, nums))",Function,Intermediate
+147,Java,Queue Interface,Add/remove items in order,Queue<Integer> q = new LinkedList<>();,Collection,Intermediate
+148,JavaScript,Reduce Right,Reduce from right to left,"arr.reduceRight((a,b)=>a+b);",Function,Intermediate
+149,C++,Constexpr Const,Compile time evaluation,constexpr int x = 42;,Optimization,Advanced
+150,Ruby,Monkey Patch,Modify class at runtime,"class String; def shout; upcase + ""!"" end end",Metaprogramming,Advanced
+151,PHP,GD Image,Create image using GD,lib,imagecreatetruecolor(...);,Advanced
+152,Go,Goroutine Leak,Detect stuck goroutines,Use pprof and runtime,Diagnostics,Advanced
+153,C#,Lambda Delegate,Create inline delegate,var fn = (x) => x * x;,Function,Intermediate
+154,Swift,DispatchGroup,Run tasks in parallel,let group = DispatchGroup();,Concurrency,Advanced
+155,Python,Dict Merge,Combine two dicts,"{**a, **b}",Dictionary,Beginner
+156,Java,Try With Resource,Auto close file,try(FileReader f = ...) { ... },IO,Intermediate
+157,JavaScript,Spread Object,Copy and modify object,"const newObj = { ...oldObj, name: ""Kai"" };",Syntax,Intermediate
+158,C++,Enum to Int,Get int from enum,int x = static_cast<int>(Color::Red);,Casting,Intermediate
+159,Ruby,Class Variable,Shared across objects,@@counter,OOP,Intermediate
+160,PHP,CURL GET,Request external API,curl_exec($ch);,Network,Intermediate
+161,Go,Runtime Caller,Get current function name,runtime.Caller(1),Debugging,Advanced
+162,C#,Tuple Deconstruction,Assign tuple to variables,"var (a, b) = GetPair();",Syntax,Intermediate
+163,Swift,Defer Block,Run block after function,"defer { print(""Done"") }",Control Flow,Intermediate
+164,Python,Frozen Set,Immutable set objects,"frozenset([1,2,3])",Set,Intermediate
+165,Java,HashMap Iterate,Loop through map entries,"for (Map.Entry<K,V> entry : map.entrySet())",Loop,Intermediate
+166,JavaScript,Modules Import,Use ES6 import/export,import func from './utils.js';,Structure,Intermediate
+167,C++,Function Overload,Define multiple versions of function,void print(int); void print(double);,OOP,Intermediate
+168,Ruby,Ternary Operator,Short if else condition,"x > 10 ? ""High"" : ""Low""",Control Flow,Beginner
+169,PHP,Header JSON,Set response type,"header(""Content-Type: application/json"");",API,Beginner
+170,Go,Embed Struct,Composition in structs,type Manager struct { Employee },OOP,Intermediate
+171,C#,Nullable Type,Optional value type,int? x = null;,Syntax,Intermediate
+172,Swift,Subscript Define,Custom index getter,subscript(index: Int) -> T { ... },Collection,Advanced
+173,Python,Named Tuple,Readable tuple values,from collections import namedtuple,Structure,Intermediate
+174,Java,Binary Tree,Node based data structure,class TreeNode { TreeNode left; ... },Structure,Advanced
+175,JavaScript,Event Delegation,Handle child events via parent,"parent.addEventListener(""click"", ...)",UI,Intermediate
+176,C++,Virtual Function,Enable polymorphism,virtual void speak();,OOP,Advanced
+177,Ruby,Enumerable Map,Apply function to list,"[1,2,3].map { |x| x * 2 }",Collection,Beginner
+178,PHP,SOAP Client,Call SOAP service,$client = new SoapClient(...);,API,Advanced
+179,Go,Map Delete,Delete key from map,"delete(m, ""key"")",Collection,Beginner
+180,C#,Dynamic Type,Runtime type handling,dynamic val = GetValue();,Dynamic,Advanced
+181,Swift,KeyPath,Access property dynamically,let key = \Person.name,Syntax,Advanced
+182,Python,Reversed Iterate,Loop backwards,for x in reversed(items): ...,Loop,Intermediate
+183,Java,LinkedList Add,Insert into LinkedList,"list.add(""data"");",Collection,Beginner
+184,JavaScript,Deep Clone,Object deep copy using JSON,JSON.parse(JSON.stringify(obj));,Utility,Intermediate
+185,C++,Inheritance,Subclass from base class,class Derived : public Base { ... },OOP,Intermediate
+186,Ruby,Rescue Specific,Handle specific exception,begin ... rescue ZeroDivisionError,Error Handling,Intermediate
+187,PHP,Composer Init,Setup project dependencies,composer init,Tooling,Beginner
+188,Go,Benchmark Testing,Measure performance,func BenchmarkX(b *testing.B),Testing,Advanced
+189,C#,Indexer Access,Array-like object access,this[int index] { get; set; },Collection,Advanced
+190,Swift,ForEach Loop,Iterate items using ForEach,list.forEach { print($0) },Loop,Intermediate
+191,Python,ThreadPool,Execute function in thread pool,from concurrent.futures import ThreadPoolExecutor,Concurrency,Advanced
+192,Java,Method Reference,Reference method directly,System.out::println,Functional,Intermediate
+193,JavaScript,Proxy API,Intercept object ops,"const proxy = new Proxy(obj, handler);",Advanced,Advanced
+194,C++,Function Pointer,Call functions via pointer,void (*funcPtr)() = &func;,Function,Advanced
+195,Ruby,JSON Parse,Read JSON string,JSON.parse(str),Utility,Intermediate
+196,PHP,Namespace Use,Organize code via namespaces,namespace App\Controllers;,Structure,Intermediate
+197,Go,JSON Unmarshal,Parse JSON to struct,"json.Unmarshal(body, &data)",IO,Intermediate
+198,C#,Async Await Task,Modern async pattern,await DoWorkAsync();,Async,Intermediate
+199,Swift,Tuple Return,Return multiple values,"func getInfo() -> (name: String, age: Int)",Function,Intermediate
+200,Python,Time Sleep,Pause execution,time.sleep(2),Utility,Beginner

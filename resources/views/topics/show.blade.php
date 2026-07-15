@@ -3,160 +3,22 @@
 @section('title', 'Topic')
 
 @section('content')
-<style>
-    /*----for chat-------*/
-    .topic-header {
-        display: flex; align-items: center; justify-content: space-between; gap: 12px;
-        flex-wrap: wrap; padding-bottom: 12px; border-bottom: 1px solid var(--line); margin-bottom: 14px;
-    }
-
-    /* ---------- Chat thread (WhatsApp-style) ---------- */
-    .chat-thread {
-        display: flex; flex-direction: column; gap: 4px;
-        background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius);
-        padding: 16px; min-height: 200px; max-height: 65vh; overflow-y: auto;
-    }
-    .msg-group { display: flex; flex-direction: column; margin: 8px 0; max-width: 78%; }
-    .msg-group.mine { align-self: flex-end; align-items: flex-end; }
-    .msg-group.theirs { align-self: flex-start; align-items: flex-start; }
-
-    .bubble {
-        position: relative; padding: 8px 12px 6px; border-radius: 12px;
-        font-size: 14px; line-height: 1.4; word-wrap: break-word;
-    }
-    .msg-group.mine .bubble { background: #d9fdd3; border-bottom-right-radius: 3px; }
-    .msg-group.theirs .bubble { background: #fff; border: 1px solid var(--line); border-bottom-left-radius: 3px; }
-    .bubble.is-flagged { outline: 2px solid var(--warn); }
-
-    .bubble-author { font-size: 12px; font-weight: 600; color: var(--accent); margin-bottom: 2px; }
-    .bubble-author:hover { text-decoration: underline; }
-    .msg-group.mine .bubble-author { display: none; }
-    .bubble-content { white-space: pre-wrap; }
-    .bubble-meta { font-size: 10.5px; color: var(--slate); margin-top: 3px; text-align: right; }
-    .bubble-flag-tag { color: var(--warn); font-weight: 600; }
-
-    .bubble-actions {
-        display: flex; gap: 2px; margin-top: 3px; opacity: 0; transition: opacity .12s;
-    }
-    .msg-group:hover .bubble-actions, .bubble-actions.force-visible { opacity: 1; }
-    .msg-group.mine .bubble-actions { justify-content: flex-end; }
-
-    .icon-btn {
-        display: inline-flex; align-items: center; justify-content: center;
-        background: transparent; border: none; color: var(--slate);
-        border-radius: 50%; width: 26px; height: 26px; cursor: pointer; padding: 0;
-    }
-    .icon-btn svg { width: 15px; height: 15px; flex-shrink: 0; }
-    .icon-btn:hover { background: rgba(0,0,0,.06); color: var(--accent); }
-    .icon-btn.flag-btn:hover { color: var(--warn); }
-    .icon-btn.is-flagged { color: var(--warn); }
-
-    .share-wrap { position: relative; display: inline-block; }
-    .share-menu {
-        display: none; position: absolute; bottom: calc(100% + 4px); z-index: 20;
-        background: #fff; border: 1px solid var(--line); border-radius: var(--radius);
-        box-shadow: 0 6px 18px rgba(28,43,51,.15); padding: 6px; min-width: 190px;
-    }
-    .msg-group.theirs .share-menu { left: 0; }
-    .msg-group.mine .share-menu { right: 0; }
-    .share-menu.open { display: block; }
-    .share-menu button {
-        display: flex; align-items: center; gap: 10px; width: 100%; text-align: left;
-        background: none; border: none; padding: 8px 10px; border-radius: 4px; cursor: pointer;
-        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 13px; color: var(--ink);
-    }
-    .share-menu button:hover { background: var(--paper); }
-    .share-menu svg { width: 16px; height: 16px; flex-shrink: 0; }
-
-    /* Replies */
-    .reply-row { margin-left: 22px; margin-top: 2px; }
-    .reply-row .bubble { font-size: 13.5px; }
-
-    /* ---------- Composer ---------- */
-    .composer {
-        display: flex; align-items: flex-end; gap: 8px; margin-top: 14px;
-        background: #fff; border: 1px solid var(--line); border-radius: 24px; padding: 8px 8px 8px 16px;
-    }
-    .composer textarea {
-        flex: 1; border: none; resize: none; outline: none; font-size: 14px; padding: 6px 0;
-        max-height: 120px; font-family: inherit;
-    }
-    .composer-send {
-        background: var(--accent); color: #fff; border: none; border-radius: 50%;
-        width: 38px; height: 38px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; cursor: pointer;
-    }
-    .composer-send svg { width: 18px; height: 18px; }
-    .composer-extra { font-size: 12px; color: var(--slate); margin-top: 6px; }
-    .composer-extra input { font-size: 12px; }
-
-    .reply-composer { display: flex; align-items: center; gap: 6px; margin: 6px 0 4px 22px; }
-    .reply-composer input {
-        flex: 1; border: 1px solid var(--line); border-radius: 16px; padding: 6px 12px; font-size: 13px; outline: none;
-    }
-    .reply-composer button {
-        background: var(--accent); color: #fff; border: none; border-radius: 50%;
-        width: 28px; height: 28px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; cursor: pointer;
-    }
-    .reply-composer button svg { width: 14px; height: 14px; }
-    
-    /* Checkbox list container mapping */
-    .checkbox-scroll-box {
-        background: #fff;
-        border: 1px solid var(--line);
-        border-radius: var(--radius);
-        max-height: 160px;
-        overflow-y: auto;
-        padding: 8px 12px;
-        margin-top: 6px;
-        margin-bottom: 12px;
-    }
-    .checkbox-item {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        padding: 4px 0;
-        font-size: 13.5px;
-        cursor: pointer;
-        color: var(--ink);
-    }
-    .checkbox-item input {
-        cursor: pointer;
-        width: 15px;
-        height: 15px;
-    }
-</style>
+<div class="eyebrow" id="topicCategory">Topic</div>
+<h1 id="topicTitle">Loading…</h1>
+<a class="btn secondary" id="exportLink" href="#" target="_blank">Export to PDF</a>
 
 <div class="card">
-    <div style="display: flex; align-items: center; justify-content: space-between;">
-        <div class="eyebrow" id="topicCategory">Topic</div>
-        <button class="icon-btn" onclick="downloadPDF()" title="Download PDF Export" style="width: 32px; height: 32px;">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-        </button>
-    </div>
-    <h1 id="topicTitle" style="margin-top: 4px;">Loading Topic...</h1>
     <h3>Write a post</h3>
-    <form id="postFormCard">
-        <textarea id="postContentCard" rows="3" placeholder="Share your thoughts…" required></textarea>
-
-        <label class="muted" style="display:block; margin-top: 12px;">Group Member Exclusions (Check users to hide this post from them):</label>
-        <div class="checkbox-scroll-box" id="excludeUsersCheckboxContainer">
-            <div class="muted" style="font-size:13px; padding:4px 0;">Loading members list…</div>
-        </div>
-
+    <form id="postForm">
+        <textarea id="postContent" rows="3" placeholder="Share your thoughts…" required></textarea>
+        <input type="text" id="excludeIds" placeholder="Exclude user IDs (comma-separated, optional)">
         <button class="btn" type="submit">Post</button>
     </form>
 </div>
 
-<div class="chat-thread" id="posts"></div>
+<div id="posts"></div>
 
-<form class="composer" id="postFormComposer">
-    <textarea id="postContentComposer" rows="1" placeholder="Type a message…" required
-        oninput="this.style.height='auto'; this.style.height=(this.scrollHeight)+'px';"></textarea>
-    <button class="composer-send" type="submit" title="Send">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
-    </button>
-</form>
-
+<!-- Profile popup modal -->
 <div id="profileModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.4); z-index:999; align-items:center; justify-content:center;">
     <div class="card" style="max-width:360px; width:90%; text-align:center;">
         <img id="modalAvatar" src="" style="width:96px;height:96px;border-radius:50%;object-fit:cover;display:none;margin:0 auto 12px;border:1px solid var(--line);">
@@ -171,11 +33,42 @@
 @endsection
 
 @section('scripts')
+@vite(['resources/js/app.js'])
 <script>
-const topicId = parseInt("{{ $topic }}") || null;
+const topicId = {{ $topic }};
+    if (window.Pusher) {
+    window.Pusher = Pusher;
+}
+
+// 2. Manually boot Echo to bypass compiler bugs
+if (typeof window.Echo === 'undefined' || !window.Echo) {
+    console.log("Forcing manual, inline configuration for Laravel Echo...");
+    
+    // Explicitly import Echo if you have it compiled, otherwise build it on top of the global Pusher
+    window.Echo = new window.Echo({
+        broadcaster: 'reverb',
+        key: '{{ env("REVERB_APP_KEY") }}', // Injects your key straight from the .env file
+        wsHost: '127.0.0.1',
+        wsPort: 8080,
+        forceTLS: false,
+        enabledTransports: ['ws', 'wss'],
+        // This forces Echo to immediately start the connection handshakes!
+        disableStats: true,
+    });
+}
+// Use standard Laravel blade echo if global window var isn't used elsewhere
+//const topicId = parseInt("{{ $topic }}") || null;
+// Change 'const' to 'let' at the top of your script
+let topicId = parseInt("{{ $topic }}") || null; 
+let activeChannelId = topicId; // Track the currently subscribed channel
+
+console.log("Current topic:", topicId);
+
 let currentUserRole = 'Student';
 let currentUserId = null;
 
+
+/* ---------------- Inline icon library ---------------- */
 const ICONS = {
     flag: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V4s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="2"/></svg>',
     share: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.6" y1="10.6" x2="15.4" y2="6.4"/><line x1="8.6" y1="13.4" x2="15.4" y2="17.6"/></svg>',
@@ -187,12 +80,14 @@ const ICONS = {
     link: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.5.5l2-2a5 5 0 0 0-7-7l-1.2 1.1"/><path d="M14 11a5 5 0 0 0-7.5-.5l-2 2a5 5 0 0 0 7 7l1.1-1.1"/></svg>',
 };
 
+// Safe API wrapper check
 async function executeApiCall(url, config = {}) {
     if (typeof api === 'function') {
         return await api(url, config);
+    } else {
+        console.error("The custom global wrapper function 'api()' was not found in your layout.");
+        return null;
     }
-    console.error("The custom global wrapper function 'api()' was not found in your layout.");
-    return null;
 }
 
 function timeOnly(dt) {
@@ -208,9 +103,185 @@ async function loadCurrentUser() {
     }
 }
 
+let subscribed = false;
+
 async function loadTopic() {
+    if (!topicId) return;
+
+    const t = await executeApiCall(`/topics/${topicId}`);
+
+    const titleEl = document.getElementById('topicTitle');
+    const categoryEl = document.getElementById('topicCategory');
+    const postsContainer = document.getElementById('posts');
+
+    if (!t || t.message) {
+        if(titleEl) titleEl.textContent = 'Unavailable';
+        if(postsContainer) postsContainer.innerHTML = `<div class="muted">${(t && t.message) || 'This topic could not be loaded.'}</div>`;
+        return;
+    }
+
+    if(titleEl) titleEl.textContent = t.title || "No Title";
+    if(categoryEl) categoryEl.textContent = t.category ?? 'General';
+    
+
+    renderPosts(t.posts || []);
+     if (postsContainer) {
+        setTimeout(() => {
+            postsContainer.scrollTop = postsContainer.scrollHeight;
+        }, 50); // A tiny 50ms delay makes sure the scroll is 100% accurate!
+    }
+    // --- ADD THIS HERE ---
+    // Every single time a topic successfully finishes loading,
+    // we must manually trigger the WebSocket subscription!
+    subscribeToTopic();
+}
+
+console.log("TOPIC SCRIPT LOADED");   
+
+  window.subscribeToTopic = function () {
+//function subscribeToTopic() {
+    console.log("subscribeToTopic called");
+    console.log("topicId =", topicId);
+
+    if (!topicId) {
+        console.log("No topicId!");
+        return;
+    }
+
+
+    // Check if Laravel Echo is loaded
+    if (typeof window.Echo === 'undefined') {
+        console.error("CRITICAL: Laravel Echo is not defined on the window object! Check if your app.js layout file is compiling and importing Echo correctly.");
+        return;
+    }
+
+    console.log("Successfully calling Echo.join for topic:", topicId);
+    
+    try {
+        
+        
+        window.Echo.join(`topic.${topicId}`)
+            .here((users) => {
+                console.log('Connected to topic! Online users:', users);
+            })
+            .joining((user) => {
+                console.log(user.full_name + ' joined');
+            })
+            .leaving((user) => {
+                console.log(user.full_name + ' left');
+            })
+            /*.listen('.message.sent', (event) => {
+                console.log('WebSocket Message Received (.message.sent):', event);
+                loadTopic();
+            })*/
+           .listen('.MessageBroadcast', (e) => { // Note the '.' prefix if using broadcastAs()
+                console.log("New message received:", e.reply);
+                console.log("!!! WEBSOCKET EVENT RECEIVED !!!");
+                console.log("Raw event payload:", e);
+
+                // Safe guard: check if e or e.reply exists
+                if (!e || !e.reply) {
+                    console.error("Payload structure mismatch! Received:", e);
+                    return;
+                }
+               
+                // 1. Identify if the message belongs to the current logged-in user
+                const isMine = e.reply.author_id === currentUserId;
+                const sideClass = isMine ? 'mine' : 'theirs';
+                const authorName = e.reply.author ? (e.reply.author.full_name || e.reply.author.name) : "User";
+                
+                const formattedTime = new Date(e.reply.replied_at || e.reply.created_at).toLocaleTimeString([], { 
+                    hour: '2-digit', 
+                    minute: '2-digit' 
+                });
+
+                // Determine if flagging action is allowed for the UI (Matches renderPosts logic)
+                const canFlag = currentUserRole === 'Administrator' || currentUserRole === 'Lecturer';
+
+                // 2. Build the exact HTML layout used in your renderPosts() function
+                const newReplyHtml = `
+                    <div class="msg-group ${sideClass} reply-row" id="reply-${e.reply.reply_id}">
+                        <div class="bubble ${e.reply.is_flagged ? 'is-flagged' : ''}">
+                            <div class="bubble-author">${authorName}</div>
+                            <div class="bubble-content">${e.reply.content}</div>
+                            <div class="bubble-meta">
+                                ${e.reply.is_flagged ? '<span class="bubble-flag-tag">flagged · </span>' : ''}
+                                ${formattedTime}
+                            </div>
+                        </div>
+                        ${actionsHtml('reply', e.reply.reply_id, e.reply.is_flagged, canFlag)}
+                    </div>
+                `;
+
+                // 3. Find the reply composer for this specific post
+                const replyInput = document.getElementById(`reply-input-${e.reply.post_id}`);
+                
+                if (replyInput) {
+                    // Get the composer container wrapper (<div class="reply-composer">)
+                    const replyComposer = replyInput.closest('.reply-composer');
+                    
+                    if (replyComposer) {
+                        // Insert the new reply directly BEFORE the reply input composer!
+                        // This guarantees it goes to the bottom of the reply stack, right above the input field.
+                        replyComposer.insertAdjacentHTML('beforebegin', newReplyHtml);
+                    }
+                } else {
+                    // Fallback: If we can't find the composer, append to the bottom of the thread
+                    const postsContainer = document.getElementById('posts');
+                    if (postsContainer) {
+                        postsContainer.insertAdjacentHTML('beforeend', newReplyHtml);
+                    }
+                }
+
+                // 4. Auto-scroll container so users see the incoming text bubble
+                const postsContainer = document.getElementById('posts');
+                if (postsContainer) {
+                    postsContainer.scrollTop = postsContainer.scrollHeight;
+                }
+            });
+            
+    } catch (error) {
+        console.error("Echo join operation failed with error:", error);
+    }
+}
+       document.addEventListener('DOMContentLoaded', async () => {
+    console.log("Page loaded. Initializing setup...");
+
+    // 1. Try to load user
+    try {
+        await loadCurrentUser();
+        console.log("User loaded. Role:", currentUserRole, "ID:", currentUserId);
+    } catch (err) {
+        console.error("Failed to load current user:", err);
+    }
+
+    // 2. Try to load topic messages
+    try {
+        await loadTopic();
+        console.log("Topic messages loaded successfully.");
+    } catch (err) {
+        console.error("Failed to load topic:", err);
+    }
+
+    // 3. Try to load exclusions
+    try {
+        await loadGroupsForExclusion();
+    } catch (err) {
+        console.error("Failed to load exclusions:", err);
+    }
+
+    // 4. Try to subscribe to WebSockets (We don't await this)
+    try {
+        subscribeToTopic();
+    } catch (err) {
+        console.error("Failed to subscribe to topic channel:", err);
+    }
+});
+
+/*async function loadTopic() {
     if(!topicId) return;
     const t = await executeApiCall(`/topics/${topicId}`);
+    
     const titleEl = document.getElementById('topicTitle');
     const categoryEl = document.getElementById('topicCategory');
     const postsContainer = document.getElementById('posts');
@@ -225,52 +296,52 @@ async function loadTopic() {
     if(categoryEl) categoryEl.textContent = t.category ?? 'General';
     
     renderPosts(t.posts || []);
-    if(postsContainer) postsContainer.scrollTop = postsContainer.scrollHeight;
+    
+    if(postsContainer) {
+        postsContainer.scrollTop = postsContainer.scrollHeight;
+    }
+}*/
 
-    const targetGroupId = t.group_id || null;
-    loadMembersForExclusion(targetGroupId);
+async function loadGroupsForExclusion() {
+    const select = document.getElementById('excludeGroup');
+    if(!select) return;
+    try {
+        const res = await executeApiCall('/groups');
+        if(!res) return;
+        const groups = res.data || res;
+        select.innerHTML = '<option value="">— Select a group —</option>' +
+            groups.map(g => `<option value="${g.group_id}">${g.name}</option>`).join('');
+    } catch (err) {
+        console.error('Could not load groups', err);
+    }
 }
 
 async function loadMembersForExclusion(groupId) {
-    const container = document.getElementById('excludeUsersCheckboxContainer');
-    if(!container) return;
-    
-    container.innerHTML = '<div class="muted" style="font-size:13px; padding:4px 0;">Loading members…</div>';
-    try {
-        const endpoint = groupId ? `/groups/${groupId}/members` : '/users';
-        const res = await executeApiCall(endpoint);
-        if(!res) {
-            container.innerHTML = '<div class="muted" style="font-size:13px; padding:4px 0;">No users found matching this scope.</div>';
-            return;
-        }
-        
-        let members = [];
-        if (Array.isArray(res)) {
-            members = res;
-        } else if (res.data && Array.isArray(res.data)) {
-            members = res.data;
-        } else if (res.users && Array.isArray(res.users)) {
-            members = res.users;
-        }
-        
-        if(members.length) {
-            container.innerHTML = members.map(m => {
-                const uid = m.user_id || m.id;
-                const name = m.full_name || m.name || 'Unknown User';
-                return `
-                    <label class="checkbox-item">
-                        <input type="checkbox" name="exclude_users_checkbox" value="${uid}">
-                        <span>${name}</span>
-                    </label>
-                `;
-            }).join('');
-        } else {
-            container.innerHTML = '<div class="muted" style="font-size:13px; padding:4px 0;">No users found matching this scope.</div>';
-        }
-    } catch (err) {
-        console.error('Could not load scope members', err);
-        container.innerHTML = '<div class="muted" style="font-size:13px; padding:4px 0; color:var(--warn);">Failed to load options list.</div>';
+    const select = document.getElementById('excludeUsers');
+    if(!select) return;
+    if (!groupId) {
+        select.innerHTML = '<option disabled>Select a group above to load its members…</option>';
+        return;
     }
+    select.innerHTML = '<option disabled>Loading members…</option>';
+    try {
+        const res = await executeApiCall(`/groups/${groupId}/members`);
+        if(!res) return;
+        const members = res.data || res;
+        select.innerHTML = members.length
+            ? members.map(m => `<option value="${m.user_id}">${m.full_name || m.name}</option>`).join('')
+            : '<option disabled>No members in this group.</option>';
+    } catch (err) {
+        console.error('Could not load group members', err);
+        select.innerHTML = '<option disabled>Failed to load members.</option>';
+    }
+}
+
+const excludeGroupEl = document.getElementById('excludeGroup');
+if(excludeGroupEl) {
+    excludeGroupEl.addEventListener('change', (e) => {
+        loadMembersForExclusion(e.target.value);
+    });
 }
 
 function actionsHtml(kind, id, isFlagged, canFlag) {
@@ -299,91 +370,93 @@ function actionsHtml(kind, id, isFlagged, canFlag) {
     `;
 }
 
-function renderPosts(posts) {
-    const container = document.getElementById('posts');
-    if(!container) return;
-    
-    const canFlag = currentUserRole === 'Administrator' || currentUserRole === 'Lecturer';
-
-    container.innerHTML = posts.map(p => {
-        const mine = p.author_id === currentUserId;
-        const side = mine ? 'mine' : 'theirs';
-        const authorName = p.author ? (p.author.full_name || p.author.name) : "User";
-
-        const repliesHtml = (p.replies || []).map(r => {
-            const replyMine = r.author_id === currentUserId;
-            const replySide = replyMine ? 'mine' : 'theirs';
-            const replyAuthorName = r.author ? (r.author.full_name || r.author.name) : "User";
-            return `
-                <div class="msg-group ${replySide} reply-row" id="reply-${r.reply_id}">
-                    <div class="bubble ${r.is_flagged ? 'is-flagged' : ''}">
-                        <div class="bubble-author" style="cursor:pointer;" onclick="viewProfile(${r.author_id})">${replyAuthorName}</div>
-                        <div class="bubble-content">${r.content}</div>
-                        <div class="bubble-meta">${r.is_flagged ? '<span class="bubble-flag-tag">flagged · </span>' : ''}${timeOnly(r.replied_at || r.created_at)}</div>
-                    </div>
-                    ${actionsHtml('reply', r.reply_id, r.is_flagged, canFlag)}
-                </div>
-            `;
-        }).join('');
-
-        return `
-            <div class="msg-group ${side}" id="post-${p.post_id}">
-                <div class="bubble ${p.is_flagged ? 'is-flagged' : ''}">
-                    <div class="bubble-author" style="cursor:pointer;" onclick="viewProfile(${p.author_id})">${authorName}</div>
-                    <div class="bubble-content">${p.content}</div>
-                    <div class="bubble-meta">${p.is_flagged ? '<span class="bubble-flag-tag">flagged · </span>' : ''}${timeOnly(p.posted_at || p.created_at)}</div>
-                </div>
-                ${actionsHtml('post', p.post_id, p.is_flagged, canFlag)}
-            </div>
-            ${repliesHtml}
-            <div class="reply-composer">
-                <input type="text" id="reply-input-${p.post_id}" placeholder="Reply…"
-                    onkeydown="if(event.key==='Enter'){ submitReply(${p.post_id}); }">
-                <button type="button" title="Send reply" onclick="submitReply(${p.post_id})">${ICONS.send}</button>
-            </div>
-        `;
-    }).join('') || '<div class="muted">No messages yet in this topic — start the discussion below.</div>';
+function authorLink(author) {
+    if (!author) return 'Unknown';
+    return `<span class="author-link" style="cursor:pointer; text-decoration:underline;" onclick="viewProfile(${author.user_id})">${author.full_name}</span>`;
 }
 
-async function submitReply(postId) {
-    const input = document.getElementById(`reply-input-${postId}`);
-    if (!input || !input.value.trim()) return;
-    const res = await executeApiCall(`/posts/${postId}/replies`, { method: 'POST', body: { content: input.value } });
-    if (res && res.message && !res.reply_id && !res.author) {
-        alert(res.message);
-    }
-    input.value = '';
+function renderPosts(posts) {
+    document.getElementById('posts').innerHTML = posts.map(p => `
+        <div class="card">
+            <strong>${authorLink(p.author)}</strong>
+            <span class="muted">${new Date(p.posted_at).toLocaleString()}</span>
+            ${p.is_flagged ? '<span class="flag"> · flagged</span>' : ''}
+            <p>${p.content}</p>
+            <button class="btn secondary" onclick="shareToSocial(${p.post_id})">Forward</button>
+            <button class="btn secondary" onclick="flagPost(${p.post_id})">Flag</button>
+            <div style="margin-top:10px; padding-left:16px; border-left: 2px solid #d8d2c4;">
+                ${(p.replies || []).map(r => `
+                    <div style="margin-bottom:8px;">
+                        <strong>${authorLink(r.author)}</strong>
+                        <span class="muted">${new Date(r.replied_at).toLocaleString()}</span>
+                        <div>${r.content}</div>
+                    </div>
+                `).join('')}
+                <form onsubmit="return submitReply(event, ${p.post_id})">
+                    <input type="text" placeholder="Reply…" required>
+                    <button class="btn secondary" type="submit">Reply</button>
+                </form>
+            </div>
+        </div>
+    `).join('') || '<div class="muted">No posts yet in this topic.</div>';
+}
+
+async function submitReply(e, postId) {
+    e.preventDefault();
+    const input = e.target.querySelector('input');
+    await api(`/posts/${postId}/replies`, { method: 'POST', body: { content: input.value } });
+    loadTopic();
+    return false;
+}
+
+async function shareToSocial(postId) {
+    await api(`/posts/${postId}/share`, { method: 'POST', body: { platform: 'Clipboard' } });
+    alert('Link copied and share logged.');
+}
+
+async function flagPost(postId) {
+    await api(`/posts/${postId}/flag`, { method: 'POST' });
     loadTopic();
 }
 
-function toggleShareMenu(key) {
-    document.querySelectorAll('.share-menu.open').forEach(m => {
-        if (m.id !== `share-menu-${key}`) m.classList.remove('open');
-    });
-    const targetMenu = document.getElementById(`share-menu-${key}`);
-    if(targetMenu) targetMenu.classList.toggle('open');
-}
+document.getElementById('postForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const excludeRaw = document.getElementById('excludeIds').value.trim();
+    const exclude_user_ids = excludeRaw ? excludeRaw.split(',').map(s => parseInt(s.trim())) : [];
 
-document.addEventListener('click', (e) => {
-    if (!e.target.closest('.share-wrap')) {
-        document.querySelectorAll('.share-menu.open').forEach(m => m.classList.remove('open'));
-    }
+    await api(`/topics/${topicId}/posts`, {
+        method: 'POST',
+        body: { content: document.getElementById('postContent').value, exclude_user_ids },
+    });
+    e.target.reset();
+    loadTopic();
 });
 
+/* ---------------- Profile popup ---------------- */
 async function shareToSocial(postId, platform) {
     const res = await executeApiCall(`/posts/${postId}/share`, { method: 'POST', body: { platform } });
     document.querySelectorAll('.share-menu.open').forEach(m => m.classList.remove('open'));
+
     if (!res || res.message) {
         alert((res && res.message) || 'This content could not be shared.');
         return;
     }
+
     const shareUrl = res.shared_url || `${window.location.origin}/topics/${topicId}#post-${postId}`;
 
     switch (platform) {
-        case 'WhatsApp': window.open(`https://wa.me/?text=${encodeURIComponent(shareUrl)}`, '_blank'); break;
-        case 'Twitter': window.open(`https://twitter.com/intent/tweet?url=${encodeURIComponent(shareUrl)}`, '_blank'); break;
-        case 'Facebook': window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`, '_blank'); break;
-        case 'LinkedIn': window.open(`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(shareUrl)}`, '_blank'); break;
+        case 'WhatsApp':
+            window.open(`https://wa.me/?text=${encodeURIComponent(shareUrl)}`, '_blank');
+            break;
+        case 'Twitter':
+            window.open(`https://twitter.com/intent/tweet?url=${encodeURIComponent(shareUrl)}`, '_blank');
+            break;
+        case 'Facebook':
+            window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`, '_blank');
+            break;
+        case 'LinkedIn':
+            window.open(`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(shareUrl)}`, '_blank');
+            break;
         case 'Clipboard':
         default:
             try {
@@ -404,26 +477,24 @@ async function flagItem(endpoint) {
     loadTopic();
 }
 
+/* Form submission hooks safely mounted */
 const cardForm = document.getElementById('postFormCard');
 if(cardForm) {
     cardForm.addEventListener('submit', async (e) => {
         e.preventDefault();
-        
-        const checkedBoxes = document.querySelectorAll('input[name="exclude_users_checkbox"]:checked');
-        const exclude_ids = Array.from(checkedBoxes)
-            .map(cb => parseInt(cb.value))
-            .filter(id => !isNaN(id));
+        const excludeSelect = document.getElementById('excludeUsers');
+        const exclude_user_ids = excludeSelect ? Array.from(excludeSelect.selectedOptions)
+            .map(opt => parseInt(opt.value))
+            .filter(id => !isNaN(id)) : [];
             
         await executeApiCall(`/topics/${topicId}/posts`, {
             method: 'POST',
-            body: { 
-                content: document.getElementById('postContentCard').value, 
-                exclude_user_ids: exclude_ids,
-                exclude_users: exclude_ids,
-                excluded_user_ids: exclude_ids
-            },
+            body: { content: document.getElementById('postContentCard').value, exclude_user_ids },
         });
         e.target.reset();
+        const exGroup = document.getElementById('excludeGroup');
+        if(exGroup) exGroup.value = '';
+        loadMembersForExclusion(null);
         loadTopic();
     });
 }
@@ -433,25 +504,32 @@ if(composerForm) {
     composerForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         const textarea = document.getElementById('postContentComposer');
+        const contentVal = textarea.value.trim();
+        if(!contentVal) return;
+
+        // Reset the input immediately to make it feel fast (WhatsApp style!)
+        textarea.value = '';
+        if(textarea) textarea.style.height = 'auto';
+
         const res = await executeApiCall(`/topics/${topicId}/posts`, {
             method: 'POST',
-            body: { content: textarea.value, exclude_user_ids: [], exclude_users: [], excluded_user_ids: [] },
+            body: { content: contentVal, exclude_user_ids: [] },
         });
+
         if (res && res.message && !res.author) {
             alert(res.message);
         }
-        e.target.reset();
-        if(textarea) textarea.style.height = 'auto';
-        loadTopic();
+
+        // Refresh the thread locally to show your newly sent message instantly
+        await loadTopic();
     });
 }
-
 async function viewProfile(userId) {
-    const profile = await executeApiCall(`/users/${userId}/profile`);
+    const profile = await api(`/users/${userId}/profile`);
     if (!profile) return;
 
-    document.getElementById('modalName').textContent = profile.full_name || profile.name;
-    document.getElementById('modalRole').textContent = profile.role || '';
+    document.getElementById('modalName').textContent = profile.full_name;
+    document.getElementById('modalRole').textContent = profile.role;
     document.getElementById('modalBio').textContent = profile.bio || 'No bio provided.';
 
     const phoneEl = document.getElementById('modalPhone');
@@ -471,8 +549,9 @@ async function viewProfile(userId) {
     } else {
         img.style.display = 'none';
         fallback.style.display = 'flex';
-        fallback.textContent = (profile.full_name || profile.name || '?').substring(0, 2).toUpperCase();
+        fallback.textContent = (profile.full_name || '?').substring(0, 2).toUpperCase();
     }
+
     document.getElementById('profileModal').style.display = 'flex';
 }
 
@@ -483,15 +562,33 @@ function closeProfileModal() {
 window.downloadPDF = async function() {
     try {
         const targetUrl = window.location.origin + `/api/topics/${topicId}/export`;
+        
+        // Grab the correct token name used by your Smart Discussion Forum login system
         const token = localStorage.getItem('sdf_token');
-        const headers = { 'Accept': 'application/pdf' };
-        if (token) headers['Authorization'] = `Bearer ${token}`;
 
-        const response = await fetch(targetUrl, { method: 'GET', headers: headers });
-        if (!response.ok) throw new Error(`Server returned status ${response.status}`);
+        const headers = {
+            'Accept': 'application/pdf'
+        };
+
+        if (token) {
+            headers['Authorization'] = `Bearer ${token}`;
+        }
+
+        const response = await fetch(targetUrl, {
+            method: 'GET',
+            headers: headers
+        });
+
+        if (!response.ok) {
+            const errBody = await response.text();
+            throw new Error(`Server returned status ${response.status}`);
+        }
 
         const pdfBlob = await response.blob();
-        if (pdfBlob.size === 0) throw new Error("The server generated an empty stream.");
+        
+        if (pdfBlob.size === 0) {
+            throw new Error("The server generated an empty stream.");
+        }
 
         const blobUrl = window.URL.createObjectURL(pdfBlob);
         const downloadLink = document.createElement('a');
@@ -506,16 +603,12 @@ window.downloadPDF = async function() {
             downloadLink.remove();
             window.URL.revokeObjectURL(blobUrl);
         }, 150);
+
     } catch (err) {
         console.error('PDF Export Breakdown:', err);
         alert(`Failed to export PDF: ${err.message}`);
     }
 }
-
-// Global initialization
-document.addEventListener('DOMContentLoaded', () => {
-    loadCurrentUser();
-    loadTopic();
-});
+  
 </script>
 @endsection

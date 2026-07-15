@@ -6,54 +6,132 @@
     <title>@yield('title', 'Smart Discussion Forum')</title>
     <meta name="csrf-token" content="{{ csrf_token() }}">
     
+@vite(['resources/js/app.js'])
+ <script src="https://js.pusher.com/8.0.1/pusher.min.js"></script>
+
     <style>
         :root {
             --ink: #1c2b33;
             --slate: #3d5a6c;
             --paper: #f6f4ee;
+            --paper-dim: #ece8db;
             --accent: #2f6f5e;
             --accent-dark: #204b3f;
             --warn: #b3542e;
             --line: #d8d2c4;
+            --seal: #a8792f;
+            --seal-dim: #f2e8d5;
+            --sky: #2a5a72;
+            --sky-dim: #e6edf1;
             --radius: 6px;
+            --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            --serif: 'Iowan Old Style', 'Georgia', serif;
+            --mono: ui-monospace, 'SF Mono', 'Courier New', monospace;
         }
         * { box-sizing: border-box; }
         body {
             margin: 0;
-            font-family: 'Iowan Old Style', 'Georgia', serif;
+            font-family: var(--serif);
             background: var(--paper);
             color: var(--ink);
         }
-        header.topbar {
-            background: var(--ink);
+        /* ---------- Global app shell: sidebar (left) + content (right) ----------
+           This is the one consistent frame every page gets via
+           @@extends('layouts.app'). Individual pages just @@yield('content')
+           into the right-hand pane; they don't need to know the sidebar
+           exists. Auth pages (login/register) opt out via a body class. */
+        .app-shell { display: flex; align-items: stretch; min-height: 100vh; }
+        .app-sidebar {
+            width: 248px;
+            flex-shrink: 0;
+            background: linear-gradient(180deg, var(--ink) 0%, #142027 100%);
             color: var(--paper);
-            padding: 14px 28px;
             display: flex;
-            justify-content: space-between;
-            align-items: center;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-            flex-wrap: wrap;
-            gap: 8px;
+            flex-direction: column;
+            position: sticky;
+            top: 0;
+            height: 100vh;
         }
-        header.topbar .brand { font-weight: 700; letter-spacing: .04em; text-transform: uppercase; font-size: 15px; }
-        header.topbar nav { display: flex; align-items: center; flex-wrap: wrap; }
-        header.topbar nav a {
+        .app-brand {
+            display: flex; align-items: center; gap: 10px;
+            padding: 22px 20px 18px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            font-weight: 700; letter-spacing: .04em; text-transform: uppercase; font-size: 15px;
+        }
+        .app-brand-icon {
+            font-size: 16px; width: 30px; height: 30px; display: inline-flex; align-items: center; justify-content: center;
+            background: rgba(47,111,94,.25); border-radius: 8px;
+        }
+        .app-nav { display: flex; flex-direction: column; padding: 4px 10px; overflow-y: auto; flex: 1; }
+        .app-nav-section {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em;
+            color: rgba(246,244,238,.4);
+            padding: 16px 10px 6px;
+        }
+        .app-nav-section:first-child { padding-top: 8px; }
+        .app-nav-item {
+            display: flex; align-items: center; gap: 12px;
+            padding: 10px 12px;
+            margin: 1px 0;
+            border-radius: 8px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            font-size: 14px;
             color: var(--paper);
             text-decoration: none;
-            margin-left: 18px;
-            font-size: 14px;
-            opacity: .85;
-            padding: 4px 2px;
-            border-bottom: 2px solid transparent;
-            transition: opacity 0.15s, border-color 0.15s;
+            opacity: .78;
+            position: relative;
+            transition: opacity .15s ease, background .15s ease, transform .15s ease;
         }
-        header.topbar nav a:hover { opacity: 1; }
-        header.topbar nav a.active { opacity: 1; border-bottom-color: var(--paper); font-weight: 600; }
-        main { max-width: 880px; margin: 0 auto; padding: 32px 24px 80px; }
-        /* Dashboard pages contain a .dash-shell, which is meant to fill the
-           available width (sidebar + panels) rather than sit in a narrow
-           centered column like plain content pages (forms, login, etc). */
-        main:has(.dash-shell) { max-width: 1400px; }
+        .app-nav-item .icon {
+            font-size: 15px; width: 22px; height: 22px; text-align: center; flex-shrink: 0;
+            display: inline-flex; align-items: center; justify-content: center;
+            transition: transform .15s ease;
+        }
+        .app-nav-item:hover { opacity: 1; background: rgba(255,255,255,.07); transform: translateX(2px); }
+        .app-nav-item:hover .icon { transform: scale(1.1); }
+        .app-nav-item.active { opacity: 1; background: rgba(47,111,94,.22); font-weight: 600; }
+        .app-nav-item.active::before {
+            content: ''; position: absolute; left: -10px; top: 50%; transform: translateY(-50%);
+            width: 3px; height: 18px; background: var(--accent); border-radius: 0 3px 3px 0;
+        }
+        .app-sidebar-footer {
+            display: flex; align-items: center; gap: 10px;
+            padding: 14px 16px;
+            border-top: 1px solid rgba(255,255,255,.12);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            font-size: 13px;
+        }
+        .app-avatar {
+            width: 34px; height: 34px; border-radius: 50%; flex-shrink: 0;
+            background: var(--accent); color: #fff; font-weight: 700; font-size: 13px;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .app-sidebar-footer .app-user-info { min-width: 0; }
+        .app-sidebar-footer .app-user { opacity: .9; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .app-sidebar-footer a { color: var(--paper); opacity: .6; text-decoration: none; font-size: 12px; transition: opacity .12s ease; }
+        .app-sidebar-footer a:hover { opacity: 1; text-decoration: underline; }
+        .app-main { flex: 1; min-width: 0; padding: 32px 24px 80px; }
+        .app-main > .content-col { max-width: 880px; margin: 0 auto; }
+        /* Dashboard/chat pages want to fill the available width rather than
+           sit in a narrow centered column like plain content pages (forms,
+           profile, etc). */
+        .app-main:has(.dash-shell) .content-col,
+        .app-main:has(.chat-thread) .content-col { max-width: 1400px; }
+        @media (max-width: 760px) {
+            .app-shell { flex-direction: column; }
+            .app-sidebar { width: 100%; height: auto; position: static; flex-direction: row; align-items: center; }
+            .app-brand { padding: 12px 14px; }
+            .app-nav { flex-direction: row; overflow-x: auto; padding: 0 6px; }
+            .app-nav-section { display: none; }
+            .app-nav-item { padding: 10px 12px; flex-shrink: 0; }
+            .app-nav-item:hover { transform: none; }
+            .app-nav-item.active::before { left: 50%; top: auto; bottom: 0; transform: translateX(-50%); width: 18px; height: 3px; border-radius: 3px 3px 0 0; }
+            .app-sidebar-footer { border-top: none; padding: 10px 14px; }
+        }
+        /* Auth pages (login/register/rules) render full-bleed, no sidebar */
+        body.auth-page .app-sidebar { display: none; }
+        body.auth-page .app-main { padding: 0; }
         h1, h2, h3 { font-family: 'Iowan Old Style', Georgia, serif; color: var(--ink); }
         .card {
             background: #fff;
@@ -61,10 +139,17 @@
             border-radius: var(--radius);
             padding: 20px 22px;
             margin-bottom: 16px;
+            box-shadow: 0 1px 2px rgba(28,43,51,.04);
+            transition: box-shadow .18s ease, border-color .18s ease;
         }
+
+        .panel-lecturer { border-left: 4px solid var(--warn); }
+        .panel-student { border-left: 4px solid var(--sky); background: var(--sky-dim); }
+        .panel-create { border-left: 4px solid var(--accent-dark); }
+
         .btn {
             display: inline-block;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            font-family: var(--sans);
             background: var(--accent);
             color: #fff;
             border: none;
@@ -72,27 +157,45 @@
             border-radius: var(--radius);
             cursor: pointer;
             font-size: 14px;
+            font-weight: 600;
             text-decoration: none;
+            transition: background .15s ease, transform .1s ease, box-shadow .15s ease;
         }
-        .btn:hover { background: var(--accent-dark); }
-        .btn.secondary { background: transparent; color: var(--accent); border: 1px solid var(--accent); }
+        .btn:hover { background: var(--accent-dark); transform: translateY(-1px); box-shadow: 0 4px 10px rgba(32,75,63,.25); }
+        .btn:active { transform: translateY(0); box-shadow: none; }
+        .btn.secondary { background: transparent; color: var(--accent); border: 1px solid var(--accent); box-shadow: none; }
+        .btn.secondary:hover { background: rgba(47,111,94,.08); box-shadow: none; }
         .btn.warn { background: var(--warn); }
+        .btn.warn:hover { background: #8f3f21; box-shadow: 0 4px 10px rgba(143,63,33,.25); }
         input, textarea, select {
             width: 100%;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            font-family: var(--sans);
             padding: 10px 12px;
             border: 1px solid var(--line);
             border-radius: var(--radius);
             margin-bottom: 12px;
             font-size: 14px;
+            transition: border-color .15s ease, box-shadow .15s ease;
         }
-        label { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 13px; color: var(--slate); display:block; margin-bottom: 4px; }
-        .eyebrow { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; text-transform: uppercase; letter-spacing: .08em; font-size: 12px; color: var(--accent); font-weight: 600; }
-        .muted { color: var(--slate); font-size: 14px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+        input:focus, textarea:focus, select:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(47,111,94,.14);
+        }
+        /* Visible keyboard focus everywhere, not just form fields */
+        a:focus-visible, button:focus-visible, .btn:focus-visible, [tabindex]:focus-visible {
+            outline: 2px solid var(--accent);
+            outline-offset: 2px;
+        }
+        label { font-family: var(--sans); font-size: 13px; color: var(--slate); display: block; margin-bottom: 4px; }
+        .eyebrow { font-family: var(--sans); text-transform: uppercase; letter-spacing: .08em; font-size: 12px; color: var(--accent); font-weight: 600; }
+        .muted { color: var(--slate); font-size: 14px; font-family: var(--sans); }
         .flag { color: var(--warn); font-weight: 600; }
-        .error { color: var(--warn); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 13px; margin-top: -6px; margin-bottom: 10px; }
-        table { width: 100%; border-collapse: collapse; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 14px; }
+        .error { color: var(--warn); font-family: var(--sans); font-size: 13px; margin-top: -6px; margin-bottom: 10px; }
+        table { width: 100%; border-collapse: collapse; font-family: var(--sans); font-size: 14px; }
         th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); }
+        tbody tr { transition: background .12s ease; }
+        tbody tr:hover { background: #faf9f6; }
 
         /* --- Dashboard helpers shared across student/lecturer/admin views --- */
         .subnav {
@@ -124,10 +227,25 @@
             border: 1px solid var(--line);
             border-radius: var(--radius);
             padding: 14px 16px;
+            transition: transform .15s ease, box-shadow .15s ease;
         }
+        .stat-card:hover { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(28,43,51,.08); }
         .stat-card .value { font-size: 26px; font-weight: 700; color: var(--ink); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
         .stat-card .label { font-size: 12px; color: var(--slate); text-transform: uppercase; letter-spacing: .04em; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
-        .section-title { display: flex; align-items: center; justify-content: space-between; margin-top: 30px; }
+        /* Panel headings inside a dashboard tab - a small accent rule underneath
+           ties back to the sidebar's active-item marker, so the same visual
+           language (a short teal bar) means "you are here" everywhere. */
+        .panel-title {
+            display: flex; align-items: center; justify-content: space-between; gap: 12px;
+            margin: 0 0 18px; padding-bottom: 10px;
+            font-size: 22px;
+            border-bottom: 2px solid var(--line);
+            position: relative;
+        }
+        .panel-title::after {
+            content: ''; position: absolute; left: 0; bottom: -2px;
+            width: 34px; height: 2px; background: var(--accent);
+        }
         .badge {
             display: inline-block;
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
@@ -143,11 +261,14 @@
         .badge.role-administrator { background: #fbe7e0; color: var(--warn); }
         .badge.role-lecturer { background: #e2ecfa; color: #2a5a9c; }
         .badge.role-student { background: #eef2f1; color: var(--accent-dark); }
-        .empty-state { color: var(--slate); font-size: 14px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; padding: 10px 0; }
+        .empty-state {
+            color: var(--slate); font-size: 14px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            padding: 22px 16px; text-align: center; border: 1px dashed var(--line); border-radius: var(--radius);
+        }
 
-        /* --- Sidebar dashboard shell (WhatsApp-style: nav list left, one panel at a time on the right) --- */
+        /* --- Dashboard panel shell: one panel visible at a time, chosen by
+           the global sidebar's ?panel= query string (see initDashSidebar) --- */
         .dash-shell {
-            display: flex;
             margin-top: 18px;
             min-height: 70vh;
             border: 1px solid var(--line);
@@ -155,56 +276,87 @@
             overflow: hidden;
             background: #fff;
         }
-        .dash-sidebar {
-            width: 240px;
-            flex-shrink: 0;
-            background: #f7f5f2;
-            border-right: 1px solid var(--line);
-            padding: 10px 0;
-            overflow-y: auto;
-        }
-        .dash-sidebar-item {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            padding: 13px 18px;
-            cursor: pointer;
-            font-size: 14px;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-            color: var(--slate);
-            border-left: 3px solid transparent;
-            text-decoration: none;
-        }
-        .dash-sidebar-item:hover { background: #eef2f1; color: var(--ink); }
-        .dash-sidebar-item.active { background: #e5efe9; color: var(--ink); font-weight: 600; border-left-color: var(--accent); }
-        .dash-sidebar-item .icon { font-size: 17px; width: 20px; text-align: center; flex-shrink: 0; }
-        .dash-main { flex: 1; padding: 22px 28px; overflow-y: auto; }
+        .dash-main { padding: 24px 28px; }
         .dash-panel { display: none; }
-        .dash-panel.active { display: block; }
-        @media (max-width: 760px) {
-            .dash-shell { flex-direction: column; }
-            .dash-sidebar { width: 100%; display: flex; overflow-x: auto; border-right: none; border-bottom: 1px solid var(--line); padding: 6px; }
-            .dash-sidebar-item { border-left: none; border-bottom: 3px solid transparent; flex-shrink: 0; padding: 10px 14px; }
-            .dash-sidebar-item.active { border-left-color: transparent; border-bottom-color: var(--accent); }
+        .dash-panel.active { display: block; animation: panelIn .25s ease; }
+        @keyframes panelIn {
+            from { opacity: 0; transform: translateY(6px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        @media (prefers-reduced-motion: reduce) {
+            * { animation-duration: .001ms !important; transition-duration: .001ms !important; }
         }
     </style>
 </head>
-<body>
-    <header class="topbar">
-        <div class="brand">Smart Discussion Forum</div>
-        <nav>
-            <a href="/dashboard" class="{{ request()->is('dashboard') || request()->is('dashboard/student') || request()->is('dashboard/lecturer') ? 'active' : '' }}">Dashboard</a>
-            <a href="/dashboard/admin" data-nav-admin-only style="display:none;" class="{{ request()->is('dashboard/admin') ? 'active' : '' }}">Admin Overview</a>
-            <a href="/dashboard/admin/users" data-nav-admin-only style="display:none;" class="{{ request()->is('dashboard/admin/users') ? 'active' : '' }}">Manage Users</a>
-            <a href="/profile" class="{{ request()->is('profile') ? 'active' : '' }}">My Profile</a>
-            <a href="#" id="logoutLink">Log out</a>
-        </nav>
-    </header>
-    <main>
-        @yield('content')
-    </main>
+<body class="@yield('body-class')">
+    @php
+        $panel = request()->query('panel');
+        $onDashboard = request()->is('dashboard') || request()->is('dashboard/*');
+        $onAdminDash = request()->is('dashboard/admin');
+    @endphp
+    <div class="app-shell">
+        <aside class="app-sidebar">
+            <div class="app-brand"><span class="app-brand-icon">🚀</span> SDF</div>
+            <nav class="app-nav">
+                <div class="app-nav-section">Workspace</div>
+                <a href="/dashboard?panel=panel-groups" data-dash-panel="panel-groups" data-role="student,lecturer,administrator" class="app-nav-item {{ ($onDashboard && !$onAdminDash && ($panel === 'panel-groups' || !$panel)) || ($onAdminDash && $panel === 'panel-groups') ? 'active' : '' }}">
+                    <span class="icon">👥</span> Groups
+                </a>
+                <!--a href="/dashboard?panel=panel-groups" data-dash-panel="panel-groups" data-role="student,lecturer,administrator" class="app-nav-item {{ (request()->is('groups/*') || request()->is('topics/*')) ? 'active' : '' }}">
+                    <span class="icon">💬</span> Topics
+                </a-->
+                <a href="/dashboard?panel=panel-group-admin" data-dash-panel="panel-group-admin" id="navGroupAdmin" style="display:none;" class="app-nav-item {{ $panel === 'panel-group-admin' ? 'active' : '' }}">
+                    <span class="icon">🛡️</span> Group Admin
+                </a>
+
+                <div class="app-nav-section" data-role="student,lecturer" style="display:none;" id="navSectionLearning">Learning</div>
+                <a href="/dashboard?panel=panel-grades" data-dash-panel="panel-grades" data-role="student" style="display:none;" class="app-nav-item {{ $panel === 'panel-grades' ? 'active' : '' }}">
+                    <span class="icon">🎓</span> My Grades
+                </a>
+                <a href="/dashboard?panel=panel-quizzes" data-dash-panel="panel-quizzes" data-role="student,lecturer" style="display:none;" class="app-nav-item {{ (request()->is('quizzes/*') || $panel === 'panel-quizzes') ? 'active' : '' }}">
+                    <span class="icon">📝</span> Quizzes
+                </a>
+                <a href="/dashboard?panel=panel-criteria" data-dash-panel="panel-criteria" data-role="lecturer" style="display:none;" class="app-nav-item {{ $panel === 'panel-criteria' ? 'active' : '' }}">
+                    <span class="icon">📊</span> Scoring Criteria
+                </a>
+                <a href="/dashboard?panel=panel-recommendations" data-dash-panel="panel-recommendations" data-role="student" style="display:none;" class="app-nav-item {{ $panel === 'panel-recommendations' ? 'active' : '' }}">
+                    <span class="icon">✨</span> Recommended
+                </a>
+                <a href="/dashboard?panel=panel-notifications" data-dash-panel="panel-notifications" data-role="student,lecturer" style="display:none;" class="app-nav-item {{ $panel === 'panel-notifications' ? 'active' : '' }}">
+                    <span class="icon">🔔</span> Notifications
+                </a>
+
+                <div class="app-nav-section" data-role="administrator" style="display:none;" id="navSectionAdmin">Administration</div>
+                <a href="/dashboard?panel=panel-overview" data-dash-panel="panel-overview" data-role="administrator" style="display:none;" class="app-nav-item {{ $onAdminDash && ($panel === 'panel-overview' || !$panel) ? 'active' : '' }}">
+                    <span class="icon">📈</span> System Overview
+                </a>
+                <a href="/dashboard?panel=panel-warnings" data-dash-panel="panel-warnings" data-role="administrator" style="display:none;" class="app-nav-item {{ $panel === 'panel-warnings' ? 'active' : '' }}">
+                    <span class="icon">⚠️</span> Inactivity Warnings
+                </a>
+                <a href="/admin/users" data-role="administrator" style="display:none;" class="app-nav-item {{ request()->is('admin/users') ? 'active' : '' }}">
+                    <span class="icon">🔑</span> Manage Users
+                </a>
+
+                <div class="app-nav-section">Account</div>
+                <a href="/profile" data-role="student,lecturer,administrator" class="app-nav-item {{ request()->is('profile') ? 'active' : '' }}">
+                    <span class="icon">👤</span> My Profile
+                </a>
+            </nav>
+            <div class="app-sidebar-footer">
+                <div class="app-avatar" id="sidebarAvatar">?</div>
+                <div class="app-user-info">
+                    <div class="app-user" id="sidebarUserName">&nbsp;</div>
+                    <a href="#" id="logoutLink">Log out</a>
+                </div>
+            </div>
+        </aside>
+        <main class="app-main">
+            <div class="content-col">
+                @yield('content')
+            </div>
+        </main>
+    </div>
     <script>
-        // Every API call attaches the bearer token stored at login.
         const apiToken = localStorage.getItem('sdf_token');
         async function api(path, options = {}) {
             const res = await fetch('/api' + path, {
@@ -247,34 +399,64 @@
                 : roleNames.includes('Lecturer') ? 'lecturer'
                 : 'student';
 
-            document.querySelectorAll('[data-nav-admin-only]').forEach(el => {
-                el.style.display = window.CURRENT_ROLE === 'administrator' ? '' : 'none';
+            document.querySelectorAll('[data-role]').forEach(el => {
+                const roles = el.dataset.role.split(',');
+                el.style.display = roles.includes(window.CURRENT_ROLE) ? '' : 'none';
             });
+
+            // Rewrite sidebar links that point at a dashboard panel so they
+            // go straight to this user's actual dashboard in one hop
+            // (e.g. /dashboard/lecturer?panel=panel-quizzes) instead of
+            // through the /dashboard role-detection bounce page. The bounce
+            // still exists and still works (e.g. old bookmarks), this is
+            // just a faster, more reliable path once we already know the role.
+            const dashboardHome = window.CURRENT_ROLE === 'administrator' ? '/dashboard/admin'
+                : window.CURRENT_ROLE === 'lecturer' ? '/dashboard/lecturer'
+                : '/dashboard/student';
+            document.querySelectorAll('a[data-dash-panel]').forEach(el => {
+                el.href = dashboardHome + '?panel=' + el.dataset.dashPanel;
+            });
+
+            const nameEl = document.getElementById('sidebarUserName');
+            const displayName = me.full_name || me.name || '';
+            if (nameEl) nameEl.textContent = displayName;
+
+            const avatarEl = document.getElementById('sidebarAvatar');
+            if (avatarEl && displayName) {
+                const initials = displayName.trim().split(/\s+/).slice(0, 2).map(w => w[0]).join('').toUpperCase();
+                avatarEl.textContent = initials || '?';
+            }
 
             return me;
         }
-        // Wires up a WhatsApp-style sidebar: clicking a .dash-sidebar-item
-        // with a data-target shows the matching .dash-panel and hides the
-        // rest. The first item with a data-target is active by default.
-        // Sidebar items without data-target (plain links, e.g. "Manage
-        // Users") are left alone and just navigate normally.
-        function initDashSidebar(root = document) {
-            const items = Array.from(root.querySelectorAll('.dash-sidebar-item[data-target]'));
+        // Shows the matching .dash-panel for whichever nav item was clicked
+        // in the *global* sidebar (layouts/app.blade.php), which links to
+        // pages like /dashboard?panel=panel-quizzes. This used to also wire
+        // up an in-page sidebar, but that's gone now - the global sidebar is
+        // the only navigation, so this just has to pick the right panel.
+        function initDashSidebar(root = document, defaultPanel = null) {
             const panels = Array.from(root.querySelectorAll('.dash-panel'));
+            if (!panels.length) return;
+            
 
             function activate(targetId) {
-                items.forEach(i => i.classList.toggle('active', i.dataset.target === targetId));
                 panels.forEach(p => p.classList.toggle('active', p.id === targetId));
             }
 
-            items.forEach(item => {
-                item.addEventListener('click', (e) => {
-                    e.preventDefault();
-                    activate(item.dataset.target);
-                });
-            });
+            const requestedPanel = new URLSearchParams(window.location.search).get('panel');
+            const hasRequested = requestedPanel && panels.some(p => p.id === requestedPanel);
+            if (hasRequested) activate(requestedPanel);
+            else if (defaultPanel && panels.some(p => p.id === defaultPanel)) activate(defaultPanel);
+            else activate(panels[0].id);
+        }
 
-            if (items.length) activate(items[0].dataset.target);
+        // The sidebar needs to know the user's role on *every* page (not
+        // just dashboard pages) so it can show the right links and rewrite
+        // them to the direct one-hop URL. Pages that also call
+        // loadCurrentUser() themselves (dashboards) just get a second,
+        // harmless /me lookup.
+        if (!document.body.classList.contains('auth-page') && localStorage.getItem('sdf_token')) {
+            loadCurrentUser();
         }
     </script>
     @yield('scripts')

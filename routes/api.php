@@ -33,6 +33,7 @@ use App\Http\Controllers\Api\ProfileController;
 // ---------------------------------------------------------------------
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
+Route::get('/topics', [TopicController::class, 'globalIndex']);
 
 Route::middleware('auth:sanctum')->group(function () {
 
@@ -40,7 +41,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/me', [AuthController::class, 'me']);
     Route::patch('/me', [ProfileController::class, 'update']);
     Route::post('/me/profile-picture', [ProfileController::class, 'updatePicture']);
-    Route::get('/users/{userId}/profile', [ProfileController::class, 'show']);
+  Route::get('/users/{userId}/profile', [ProfileController::class, 'show']);
 
     // -------------------------------------------------------------
     // 5.1 Role Management (Administrator only)
@@ -63,18 +64,18 @@ Route::middleware('auth:sanctum')->group(function () {
     // -------------------------------------------------------------
     // 5.3 Topic Management and Export Module
     // -------------------------------------------------------------
+    Route::get('/topics', [TopicController::class, 'index']);
     Route::get('/groups/{group}/topics', [TopicController::class, 'index']);
     Route::post('/groups/{group}/topics', [TopicController::class, 'store'])
         ->middleware('blacklist');
     Route::get('/topics/{topic}', [TopicController::class, 'show']);
     Route::get('/topics/{topic}/export', [TopicController::class, 'export']);
-    Route::get('/topics/{topic}/download-pdf', [TopicController::class, 'downloadPdf'])
-        ->name('topics.download_pdf');
 
     // -------------------------------------------------------------
     // Posts, replies, moderation (part of 5.2 + 5.3)
     // -------------------------------------------------------------
     Route::get('/topics/{topic}/posts', [PostController::class, 'index']);
+    Route::get('/topics/{id}', [TopicController::class, 'show']);
     Route::post('/topics/{topic}/posts', [PostController::class, 'store']);
     Route::delete('/posts/{post}', [PostController::class, 'destroy']);
     Route::post('/posts/{post}/flag', [PostController::class, 'flag'])
@@ -87,11 +88,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // -------------------------------------------------------------
     // 5.2 Moderation and Inactivity Management Module (admin/lecturer)
     // -------------------------------------------------------------
-    Route::get('/moderation/warnings', [ModerationController::class, 'warningsIndex']);
-    Route::post('/moderation/warnings/{warning}/resolve', [ModerationController::class, 'resolveWarning']);
-
     Route::middleware('role:Administrator,Lecturer')->group(function () {
-        Route::get('/moderation/warnings', [ModerationController::class, 'warningsIndex']);
         Route::post('/groups/{group}/moderation/scan-inactivity', [ModerationController::class, 'scanInactivity']);
         Route::post('/moderation/warnings/{warning}/resolve', [ModerationController::class, 'resolveWarning']);
         Route::post('/groups/{group}/blacklist/{user}', [ModerationController::class, 'blacklistUser']);
@@ -174,5 +171,4 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/notifications/unread-count', [NotificationController::class, 'unreadCount']);
     Route::patch('/notifications/{notification}/read', [NotificationController::class, 'markRead']);
     Route::patch('/notifications/read-all', [NotificationController::class, 'markAllRead']);
-
 });

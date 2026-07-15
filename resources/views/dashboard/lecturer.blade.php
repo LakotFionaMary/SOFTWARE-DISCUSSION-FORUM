@@ -1,162 +1,39 @@
 @extends('layouts.app')
-
+ 
 @section('title', 'Lecturer Dashboard')
-
+ 
 @section('content')
-<style>
-    /* ---------- Groups panel: single drill-down view (groups -> topics -> posts) ---------- */
-    #groupsBrowserContent { margin-top: 12px; }
-
-    .back-link { display: inline-block; color: var(--accent); font-weight: 600; cursor: pointer; }
-    .back-link:hover { text-decoration: underline; }
-
-    .group-item, .topic-item {
-        display: flex; align-items: center; justify-content: space-between; gap: 10px;
-        padding: 12px 4px; cursor: pointer;
-    }
-    .group-item:hover, .topic-item:hover { background: #eef2f1; }
-    .topic-item { border-bottom: 1px solid var(--line); }
-    .topic-item:last-child { border-bottom: none; }
-    .group-item .group-info { min-width: 0; }
-    .group-item .group-info strong, .topic-item strong { display: block; font-size: 15px; }
-    .group-item .group-info .muted, .topic-item .muted { font-size: 12.5px; }
-    .group-item .group-actions { flex-shrink: 0; display: flex; align-items: center; gap: 6px; }
-    .group-item .group-actions a { font-size: 12px; }
-
-    /* ---------- Group members toggle (names under each group card) ---------- */
-    .group-card-wrap { border-bottom: 1px solid var(--line); }
-    .group-card-wrap:last-child { border-bottom: none; }
-    .group-card-wrap .group-item { border-bottom: none; }
-    .members-toggle {
-        display: inline-block; font-size: 12px; color: var(--accent); cursor: pointer;
-        padding: 0 4px 10px; user-select: none;
-    }
-    .members-toggle:hover { text-decoration: underline; }
-    .members-names {
-        display: none; padding: 0 4px 12px; font-size: 13px; color: var(--slate);
-        flex-wrap: wrap; gap: 6px;
-    }
-    .members-names.open { display: flex; }
-    .members-names .member-chip {
-        background: #eef2f1; border-radius: 12px; padding: 3px 10px; font-size: 12.5px;
-    }
-
-    /* Chat thread + composer, reused from the standalone topic page so the
-       inline preview here looks/feels the same. No fixed height/scrolling —
-       it simply grows with the conversation. */
-    .chat-thread {
-        display: flex; flex-direction: column; gap: 4px;
-        background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius);
-        padding: 16px; min-height: 260px; flex: 1;
-    }
-    .msg-group { display: flex; flex-direction: column; margin: 10px 0; max-width: 78%; }
-    .msg-group.mine { align-self: flex-end; align-items: flex-end; }
-    .msg-group.theirs { align-self: flex-start; align-items: flex-start; }
-    /* Reply thread: a connecting guide line + indent applied straight to the
-       message itself (one modifier class) instead of an extra wrapper div. */
-    .msg-group.is-reply { margin-left: 26px; max-width: calc(78% - 26px); padding-left: 14px; border-left: 2px solid var(--line); }
-
-    .bubble {
-        padding: 8px 12px; border-radius: 12px;
-        font-size: 14px; line-height: 1.4; word-wrap: break-word;
-    }
-    .msg-group.mine .bubble { background: #d9fdd3; border-bottom-right-radius: 3px; }
-    .msg-group.theirs .bubble { background: #fff; border: 1px solid var(--line); border-bottom-left-radius: 3px; }
-    .bubble-author { display: block; font-size: 12px; font-weight: 600; color: var(--accent); margin-bottom: 2px; }
-    .msg-group.mine .bubble-author { display: none; }
-    .bubble-text { margin: 0; white-space: pre-wrap; }
-
-    .msg-actions { display: flex; align-items: center; gap: 8px; margin: 4px 2px 0; font-size: 11.5px; }
-    .msg-group.mine .msg-actions { flex-direction: row-reverse; }
-    .msg-actions .reply-link,
-    .msg-actions .forward-link { color: var(--accent); cursor: pointer; }
-    .msg-actions .reply-link:hover,
-    .msg-actions .forward-link:hover { text-decoration: underline; }
-    .msg-actions .msg-time { color: var(--slate); }
-
-    .composer {
-        display: flex; align-items: flex-end; gap: 8px; margin-top: 14px;
-        background: #fff; border: 1px solid var(--line); border-radius: 24px; padding: 8px 8px 8px 16px;
-    }
-    .composer textarea {
-        flex: 1; border: none; resize: none; outline: none; font-size: 14px; padding: 6px 0;
-        max-height: 120px; font-family: inherit;
-    }
-    .composer-send {
-        background: var(--accent); color: #fff; border: none; border-radius: 50%;
-        width: 38px; height: 38px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; cursor: pointer;
-    }
-    .composer-send svg { width: 18px; height: 18px; }
-
-    /* Icon button specific layout matching setup adjustments */
-    .icon-btn {
-        display: inline-flex; align-items: center; justify-content: center;
-        background: transparent; border: none; color: var(--slate);
-        border-radius: 50%; width: 32px; height: 32px; cursor: pointer; padding: 0;
-    }
-    .icon-btn svg { width: 16px; height: 16px; flex-shrink: 0; }
-    .icon-btn:hover { background: rgba(0,0,0,.06); color: var(--accent); }
-
-    /* ---------- Post exclusion checklist (dashboard composer) ---------- */
-    .exclusion-wrap { margin-top: 10px; }
-    .exclusion-wrap .exclusion-label { font-size: 13px; font-weight: 600; color: var(--slate); display: block; margin-bottom: 6px; }
-    .exclusion-list {
-        border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px;
-        max-height: 140px; overflow-y: auto; background: #fff;
-    }
-    .exclusion-list label {
-        display: flex; align-items: center; gap: 8px;
-        padding: 6px 2px; font-size: 14px; cursor: pointer;
-    }
-    .exclusion-list input[type="checkbox"] { width: 15px; height: 15px; flex-shrink: 0; }
-
-    /* ---------- Forward message modal ---------- */
-    .modal-overlay {
-        position: fixed; inset: 0; background: rgba(15, 23, 20, 0.45);
-        display: none; align-items: center; justify-content: center; z-index: 1000; padding: 16px;
-    }
-    .modal-overlay.open { display: flex; }
-    .modal-box {
-        background: #fff; border-radius: var(--radius); padding: 20px;
-        width: 100%; max-width: 420px; box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-    }
-    .modal-preview {
-        background: #f3f8f5; border-left: 3px solid var(--accent); padding: 8px 10px;
-        border-radius: 0 6px 6px 0; font-size: 13px; max-height: 90px; overflow-y: auto; white-space: pre-wrap;
-    }
-    .modal-box select {
-        width: 100%; padding: 7px; border: 1px solid var(--line); border-radius: 6px; font-family: inherit;
-    }
-</style>
-
 <div class="eyebrow">Lecturer Dashboard</div>
 <h1 id="welcome">Loading your dashboard…</h1>
-
+ 
 <div class="dash-shell">
-    <nav class="dash-sidebar">
-        <a href="#" class="dash-sidebar-item" data-target="panel-groups"><span class="icon">👥</span> My Groups</a>
-        <a href="#" class="dash-sidebar-item" data-target="panel-quizzes"><span class="icon">📝</span> Quizzes</a>
-        <a href="#" class="dash-sidebar-item" data-target="panel-criteria"><span class="icon">📊</span> Scoring Criteria</a>
-        <a href="#" class="dash-sidebar-item" data-target="panel-notifications"><span class="icon">🔔</span> Notifications</a>
-    </nav>
-
     <div class="dash-main">
         <!-- ================= MY GROUPS ================= -->
         <div class="dash-panel" id="panel-groups">
             <div class="section-title"><h2 style="margin:0;">Groups</h2></div>
             <p class="muted">Groups you own or administer. Statistics and the gradebook are only available for groups where you're the lecturer or an active group admin.</p>
-            <div class="card" id="groupsBrowserContent">Loading groups…</div>
+ 
+            <div class="card" style="border-left: 4px solid #4f46e5; margin-top: 12px;">
+                <h3>Create a new group</h3>
+                <form id="createGroupForm">
+                    <input type="text" id="groupName" placeholder="Group name (e.g. CS301 Databases)" required>
+                    <textarea id="groupDescription" placeholder="What is this group for?" rows="2"></textarea>
+                    <button class="btn" type="submit">Create group</button>
+                </form>
+            </div>
+ 
+            <div id="groupsList" class="muted" style="margin-top: 14px;">Loading your groups…</div>
         </div>
-
+ 
         <!-- ================= QUIZZES ================= -->
         <div class="dash-panel" id="panel-quizzes">
             <div class="section-title"><h2 style="margin:0;">Quizzes</h2></div>
-
+ 
             <div class="card" style="border-left: 4px solid #e11d48;">
                 <h3>Create a new quiz</h3>
                 <p class="muted">Schedule a quiz and build as many multiple-choice questions as you need.</p>
                 <button class="btn btn-secondary" id="toggleQuizFormBtn" type="button">Open quiz form</button>
-
+ 
                 <form id="quizConfigForm" style="display: none; margin-top: 15px; border-top: 1px solid #e2e8f0; padding-top: 15px;">
                     <div style="margin-bottom: 10px;">
                         <label>Target Group:</label>
@@ -178,33 +55,33 @@
                         <label>Duration (Minutes):</label>
                         <input type="number" id="durationMinutes" placeholder="30" required style="width: 100%; padding: 6px;">
                     </div>
-
+ 
                     <div style="display:flex; align-items:center; justify-content:space-between; margin-top: 15px;">
                         <h4 style="color:#e11d48; margin:0;">Question Matrix</h4>
                         <button class="btn btn-secondary" type="button" id="addQuestionBtn">+ Add question</button>
                     </div>
-
+ 
                     <div id="questionMatrix"></div>
-
+ 
                     <button class="btn" type="submit" style="background-color: #e11d48; color: white; width: 100%; margin-top: 15px;">Save & Publish Quiz</button>
                 </form>
             </div>
-
+ 
             <h3 style="margin-top: 20px;">Your quizzes</h3>
             <div id="lecturerQuizzes" class="card muted">Loading your quizzes…</div>
         </div>
-
+ 
         <!-- ================= SCORING CRITERIA ================= -->
         <div class="dash-panel" id="panel-criteria">
             <div class="section-title"><h2 style="margin:0;">Scoring Criteria</h2></div>
             <div class="card" style="border-left: 4px solid #16a34a;">
                 <p class="muted">Define how much each activity is worth per group. A group with no criteria for an activity type earns students zero participation points for it, even if they post.</p>
-
+ 
                 <label>Group:</label>
                 <select id="criteriaGroupId" style="width: 100%; padding: 6px; margin-bottom: 10px;"></select>
-
+ 
                 <div id="criteriaList" class="muted" style="margin-bottom: 12px;">Select a group above.</div>
-
+ 
                 <form id="criteriaForm" style="border-top: 1px solid #e2e8f0; padding-top: 12px;">
                     <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: flex-end;">
                         <div style="flex: 2; min-width: 160px;">
@@ -229,7 +106,7 @@
                 </form>
             </div>
         </div>
-
+ 
         <!-- ================= NOTIFICATIONS ================= -->
         <div class="dash-panel" id="panel-notifications">
             <div class="section-title"><h2 style="margin:0;">Notifications</h2></div>
@@ -237,66 +114,47 @@
         </div>
     </div>
 </div>
-
-<div class="modal-overlay" id="forwardModalOverlay">
-    <div class="modal-box">
-        <h3 style="margin-top:0;">Forward message</h3>
-        <div class="modal-preview" id="forwardPreview"></div>
-
-        <label class="muted" style="display:block; margin:14px 0 4px;">Group</label>
-        <select id="forwardGroupSelect"></select>
-
-        <label class="muted" style="display:block; margin:12px 0 4px;">Topic</label>
-        <select id="forwardTopicSelect"></select>
-
-        <div style="display:flex; gap:8px; margin-top:18px; justify-content:flex-end;">
-            <button class="btn secondary" type="button" onclick="closeForwardModal()">Cancel</button>
-            <button class="btn" type="button" onclick="confirmForward()">Forward</button>
-        </div>
-    </div>
-</div>
 @endsection
-
+ 
 @section('scripts')
 <script>
     if (!localStorage.getItem('sdf_token')) { window.location.href = '/'; }
-
+ 
     let myGroups = [];
-
+ 
     async function loadWelcome() {
         const me = await loadCurrentUser();
         if (!me) return;
         if (window.CURRENT_ROLE === 'student') {
-            window.location.replace('/dashboard/student');
+            window.location.replace('/dashboard/student' + window.location.search);
             return;
         }
         if (window.CURRENT_ROLE === 'administrator') {
-            window.location.replace('/dashboard/admin');
+            window.location.replace('/dashboard/admin' + window.location.search);
             return;
         }
         document.getElementById('welcome').textContent = `Welcome, ${me.full_name}`;
     }
-
-    /* ---------- Groups panel: single drill-down view ---------- */
-    let browseView = 'groups'; // 'groups' | 'topics' | 'posts'
-    let activeBrowseGroupId = null;
-    let activeBrowseGroupName = '';
-    let activeBrowseTopicId = null;
-    let activeBrowseTopicTitle = '';
-    let currentTopicMessages = [];
-    const groupMembersCache = {};
-
-    function escAttr(str) {
-        return (str || '').replace(/'/g, "\\'");
-    }
-
+ 
     async function loadGroups() {
         const data = await api('/groups');
         const groups = (data && (data.data || data)) || [];
         myGroups = groups;
-        Object.keys(groupMembersCache).forEach(k => delete groupMembersCache[k]);
-        renderGroupsBrowser();
-
+ 
+        document.getElementById('groupsList').innerHTML = groups.map(g => `
+            <div class="card">
+                <strong><a href="/groups/${g.group_id}">${g.name}</a></strong>
+                ${g.is_owner ? '<span class="badge role-lecturer" style="margin-left:8px;">Owner</span>' : ''}
+                <div class="muted">${g.description ?? ''} · ${g.members_count ?? 0} members · ${g.topics_count ?? 0} topics</div>
+                ${g.can_view_group_statistics ? `
+                    <div style="margin-top: 8px;">
+                        <a class="btn btn-secondary" href="/groups/${g.group_id}/statistics" style="padding: 4px 10px; font-size: 13px;">Statistics</a>
+                        <a class="btn btn-secondary" href="/groups/${g.group_id}/gradebook" style="padding: 4px 10px; font-size: 13px; margin-left: 6px;">Gradebook</a>
+                    </div>
+                ` : ''}
+            </div>
+        `).join('') || '<div class="empty-state">You are not in any groups yet. Create one above.</div>';
+ 
         ['quizGroupId', 'criteriaGroupId'].forEach(id => {
             const dropdown = document.getElementById(id);
             if (!dropdown) return;
@@ -308,391 +166,24 @@
             }
         });
     }
-
-    function renderGroupsBrowser() {
-        const el = document.getElementById('groupsBrowserContent');
-        if (browseView === 'topics') {
-            el.innerHTML = topicsViewHtml();
-            loadBrowseTopics();
-        } else if (browseView === 'posts') {
-            el.innerHTML = postsViewHtml();
-            loadBrowsePosts();
-        } else {
-            el.innerHTML = groupsViewHtml();
-        }
-    }
-
-    function groupsViewHtml() {
-        const rows = myGroups.map(g => `
-            <div class="group-card-wrap">
-                <div class="group-item" data-group-id="${g.group_id}" onclick="openGroupTopics(${g.group_id}, '${escAttr(g.name)}')">
-                    <div class="group-info">
-                        <strong>${g.name} ${g.is_owner ? '<span class="badge role-lecturer" style="margin-left:6px;">Owner</span>' : ''}</strong>
-                        <div class="muted">${g.description ?? ''} · ${g.members_count ?? 0} members · ${g.topics_count ?? 0} topics</div>
-                    </div>
-                    ${g.can_view_group_statistics ? `
-                        <div class="group-actions">
-                            <a href="/groups/${g.group_id}/statistics" onclick="event.stopPropagation()">Statistics</a>
-                            <a href="/groups/${g.group_id}/gradebook" onclick="event.stopPropagation()">Gradebook</a>
-                        </div>
-                    ` : ''}
-                </div>
-                <span class="members-toggle" onclick="toggleGroupMembers(event, ${g.group_id})" id="membersToggle-${g.group_id}">Show members</span>
-                <div class="members-names" id="membersNames-${g.group_id}"></div>
-            </div>
-        `).join('') || '<div class="empty-state">You are not in any groups yet. Create one below.</div>';
-
-        const createGroupCard = `
-            <div class="card" style="border-left: 4px solid #4f46e5; margin-top: 12px;">
-                <h3>Create a new group</h3>
-                <form id="createGroupForm">
-                    <input type="text" id="groupName" placeholder="Group name (e.g. CS301 Databases)" required style="width:100%; padding:7px; margin-bottom:8px;">
-                    <textarea id="groupDescription" placeholder="What is this group for?" rows="2" style="width:100%; padding:7px; margin-bottom:8px;"></textarea>
-                    <button class="btn" type="submit">Create group</button>
-                </form>
-            </div>
-        `;
-
-        return rows + createGroupCard;
-    }
-
-    function topicsViewHtml() {
-        return `
-            <a class="back-link" onclick="browseGoBack()">← Back to groups</a>
-            <h3 style="margin: 12px 0 2px;">${activeBrowseGroupName}</h3>
-            <p class="muted" style="margin: 0 0 14px;">Topics in this group</p>
-            <form id="newTopicFormInline" style="margin-bottom:14px;">
-                <input type="text" id="newTopicTitleInline" placeholder="New topic title…" required style="width:100%; padding:7px; margin-bottom:6px;">
-                <button class="btn" type="submit" style="width:100%;">+ New Topic</button>
-            </form>
-            <div id="groupTopicsList" class="muted">Loading topics…</div>
-        `;
-    }
-
-    function postsViewHtml() {
-        return `
-            <a class="back-link" onclick="browseGoBack()">← Back to topics</a>
-            <div style="display:flex; align-items:center; justify-content:space-between; margin: 12px 0 14px;">
-                <h3 style="margin:0;">${activeBrowseTopicTitle}</h3>
-                <button class="icon-btn" type="button" onclick="exportDashTopicPdf()" title="Download PDF Export">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                </button>
-            </div>
-            <div class="chat-thread" id="dashPosts"><div class="muted">Loading messages…</div></div>
-            <form class="composer-block" id="dashComposerForm">
-                <div class="composer">
-                    <textarea id="dashComposerInput" rows="1" placeholder="Type a message…" required
-                        oninput="this.style.height='auto'; this.style.height=(this.scrollHeight)+'px';"></textarea>
-                    <button class="composer-send" type="submit" title="Send">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
-                    </button>
-                </div>
-                <div class="exclusion-wrap">
-                    <span class="exclusion-label">Group Member Exclusions (check users to hide this post from them):</span>
-                    <div class="exclusion-list" id="dashExclusionList"><div class="muted" style="font-size:13px;">Loading members…</div></div>
-                </div>
-            </form>
-        `;
-    }
-
-    function openGroupTopics(groupId, groupName) {
-        activeBrowseGroupId = groupId;
-        activeBrowseGroupName = groupName;
-        activeBrowseTopicId = null;
-        browseView = 'topics';
-        renderGroupsBrowser();
-    }
-    window.openGroupTopics = openGroupTopics;
-
-    function openTopicPosts(topicId, title) {
-        activeBrowseTopicId = topicId;
-        activeBrowseTopicTitle = title;
-        browseView = 'posts';
-        renderGroupsBrowser();
-    }
-    window.openTopicPosts = openTopicPosts;
-
-    function browseGoBack() {
-        if (browseView === 'posts') {
-            browseView = 'topics';
-            activeBrowseTopicId = null;
-        } else if (browseView === 'topics') {
-            browseView = 'groups';
-            activeBrowseGroupId = null;
-        }
-        renderGroupsBrowser();
-    }
-    window.browseGoBack = browseGoBack;
-
-    /* ---------- Group members toggle (names under each group card in Groups list) ---------- */
-    async function toggleGroupMembers(event, groupId) {
-        event.stopPropagation();
-        const namesEl = document.getElementById(`membersNames-${groupId}`);
-        const toggleEl = document.getElementById(`membersToggle-${groupId}`);
-        if (!namesEl || !toggleEl) return;
-
-        const isOpen = namesEl.classList.contains('open');
-        if (isOpen) {
-            namesEl.classList.remove('open');
-            toggleEl.textContent = 'Show members';
-            return;
-        }
-
-        toggleEl.textContent = 'Hide members';
-        namesEl.classList.add('open');
-
-        if (groupMembersCache[groupId]) {
-            namesEl.innerHTML = groupMembersCache[groupId];
-            return;
-        }
-
-        namesEl.innerHTML = '<span class="muted">Loading members…</span>';
-
-        const data = await api(`/groups/${groupId}/members`);
-        const members = (data && (data.data || data)) || [];
-
-        const html = members.map(m => `<span class="member-chip">${m.full_name || m.name}</span>`).join('')
-            || '<span class="muted">No members yet.</span>';
-
-        groupMembersCache[groupId] = html;
-        namesEl.innerHTML = html;
-    }
-    window.toggleGroupMembers = toggleGroupMembers;
-
-    function timeOnly(dt) {
-        if (!dt) return '';
-        return new Date(dt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    }
-
-    async function loadBrowseTopics() {
-        if (!activeBrowseGroupId) return;
-        const listEl = document.getElementById('groupTopicsList');
-        if (!listEl) return;
-
-        const data = await api(`/groups/${activeBrowseGroupId}/topics`);
-        const topics = (data && (data.data || data)) || [];
-
-        listEl.innerHTML = topics.map(t => `
-            <div class="topic-item" data-topic-id="${t.topic_id}" onclick="openTopicPosts(${t.topic_id}, '${escAttr(t.title)}')">
-                <strong>${t.title}</strong>
-                <div class="muted">${t.posts_count ?? 0} ${(t.posts_count === 1) ? 'reply' : 'replies'}</div>
-            </div>
-        `).join('') || '<div class="empty-state">No topics yet — start one above.</div>';
-    }
-
-    async function loadBrowsePosts() {
-        if (!activeBrowseTopicId) return;
-        const container = document.getElementById('dashPosts');
-        if (!container) return;
-
-        const t = await api(`/topics/${activeBrowseTopicId}`);
-        if (!t || t.message) {
-            container.innerHTML = `<div class="muted">${(t && t.message) || 'This topic could not be loaded.'}</div>`;
-            return;
-        }
-
-        const myId = window.CURRENT_USER ? window.CURRENT_USER.user_id : null;
-        const posts = t.posts || [];
-
-        currentTopicMessages = [];
-
-        container.innerHTML = posts.map(p => {
-            const mine = p.author_id === myId;
-            const side = mine ? 'mine' : 'theirs';
-            const authorName = p.author ? (p.author.full_name || p.author.name) : 'User';
-
-            const repliesHtml = (p.replies || []).map(r => {
-                const replyMine = r.author_id === myId;
-                const replySide = replyMine ? 'mine' : 'theirs';
-                const replyAuthorName = r.author ? (r.author.full_name || r.author.name) : 'User';
-                return renderMsgGroup(replySide, replyAuthorName, r.content, timeOnly(r.replied_at || r.created_at), true);
-            }).join('');
-
-            return renderMsgGroup(side, authorName, p.content, timeOnly(p.posted_at || p.created_at), false) + repliesHtml;
-        }).join('') || '<div class="muted">No messages yet in this topic — start the discussion below.</div>';
-
-        container.scrollTop = container.scrollHeight;
-
-        loadGroupMembersForExclusion();
-    }
-
-    function renderMsgGroup(side, authorName, content, time, isReply) {
-        const msgIndex = currentTopicMessages.length;
-        currentTopicMessages.push({ author: authorName, content });
-
-        return `
-            <div class="msg-group ${side}${isReply ? ' is-reply' : ''}">
-                <div class="bubble">
-                    <span class="bubble-author">${authorName}</span>
-                    <p class="bubble-text">${content}</p>
-                </div>
-                <div class="msg-actions">
-                    <a class="reply-link" onclick="focusComposerWithMention('${authorName.replace(/'/g, "\\'")}')">Reply</a>
-                    <a class="forward-link" onclick="openForwardModal(${msgIndex})">Forward</a>
-                    <span class="msg-time">${time}</span>
-                </div>
-            </div>
-        `;
-    }
-
-    /* ---------- Post exclusion checklist ---------- */
-    async function loadGroupMembersForExclusion() {
-        const listEl = document.getElementById('dashExclusionList');
-        if (!listEl || !activeBrowseGroupId) return;
-
-        const data = await api(`/groups/${activeBrowseGroupId}/members`);
-        const members = (data && (data.data || data)) || [];
-        const myId = window.CURRENT_USER ? window.CURRENT_USER.user_id : null;
-
-        listEl.innerHTML = members
-            .filter(m => m.user_id !== myId)
-            .map(m => `
-                <label>
-                    <input type="checkbox" value="${m.user_id}">
-                    ${m.full_name || m.name}
-                </label>
-            `).join('') || '<div class="muted" style="font-size:13px;">No other members in this group.</div>';
-    }
-    window.loadGroupMembersForExclusion = loadGroupMembersForExclusion;
-
-    function focusComposerWithMention(authorName) {
-        const textarea = document.getElementById('dashComposerInput');
-        if (!textarea) return;
-        if (!textarea.value.trim()) {
-            textarea.value = `@${authorName} `;
-            textarea.style.height = 'auto';
-            textarea.style.height = (textarea.scrollHeight) + 'px';
-        }
-        textarea.focus();
-    }
-    window.focusComposerWithMention = focusComposerWithMention;
-
-    async function exportDashTopicPdf() {
-        if (!activeBrowseTopicId) return;
-        try {
-            const token = localStorage.getItem('sdf_token');
-            const headers = { 'Accept': 'application/pdf' };
-            if (token) headers['Authorization'] = `Bearer ${token}`;
-
-            const response = await fetch(window.location.origin + `/api/topics/${activeBrowseTopicId}/export`, { method: 'GET', headers });
-            if (!response.ok) throw new Error(`Server returned status ${response.status}`);
-
-            const pdfBlob = await response.blob();
-            if (pdfBlob.size === 0) throw new Error('The server generated an empty file.');
-
-            const blobUrl = window.URL.createObjectURL(pdfBlob);
-            const link = document.createElement('a');
-            link.style.display = 'none';
-            link.href = blobUrl;
-            link.download = `topic-${activeBrowseTopicId}.pdf`;
-            document.body.appendChild(link);
-            link.click();
-            setTimeout(() => { link.remove(); window.URL.revokeObjectURL(blobUrl); }, 150);
-        } catch (err) {
-            alert(`Failed to export PDF: ${err.message}`);
-        }
-    }
-    window.exportDashTopicPdf = exportDashTopicPdf;
-
-    /* ---------- Forward message modal ---------- */
-    let forwardMessageIndex = null;
-
-    function openForwardModal(msgIndex) {
-        const msg = currentTopicMessages[msgIndex];
-        if (!msg) return;
-        forwardMessageIndex = msgIndex;
-
-        document.getElementById('forwardPreview').textContent = `${msg.author}: ${msg.content}`;
-
-        const groupSelect = document.getElementById('forwardGroupSelect');
-        groupSelect.innerHTML = myGroups.map(g => `<option value="${g.group_id}">${g.name}</option>`).join('')
-            || '<option value="">You have not created any groups</option>';
-        groupSelect.onchange = () => populateForwardTopics(groupSelect.value);
-
-        document.getElementById('forwardModalOverlay').classList.add('open');
-
-        if (myGroups.length) {
-            populateForwardTopics(myGroups[0].group_id);
-        } else {
-            document.getElementById('forwardTopicSelect').innerHTML = '';
-        }
-    }
-    window.openForwardModal = openForwardModal;
-
-    async function populateForwardTopics(groupId) {
-        const topicSelect = document.getElementById('forwardTopicSelect');
-        if (!groupId) { topicSelect.innerHTML = ''; return; }
-        topicSelect.innerHTML = '<option>Loading…</option>';
-
-        const data = await api(`/groups/${groupId}/topics`);
-        const topics = (data && (data.data || data)) || [];
-        topicSelect.innerHTML = topics.map(t => `<option value="${t.topic_id}">${t.title}</option>`).join('')
-            || '<option value="">No topics in this group</option>';
-    }
-
-    function closeForwardModal() {
-        document.getElementById('forwardModalOverlay').classList.remove('open');
-        forwardMessageIndex = null;
-    }
-    window.closeForwardModal = closeForwardModal;
-
-    async function confirmForward() {
-        if (forwardMessageIndex === null) return;
-        const msg = currentTopicMessages[forwardMessageIndex];
-        const topicId = document.getElementById('forwardTopicSelect').value;
-        if (!msg || !topicId) return;
-
-        const forwardedContent = `Forwarded from ${msg.author}:\n${msg.content}`;
-        await api(`/topics/${topicId}/posts`, { method: 'POST', body: { content: forwardedContent, exclude_user_ids: [] } });
-
-        closeForwardModal();
-
-        if (activeBrowseTopicId && Number(topicId) === activeBrowseTopicId) {
-            loadBrowsePosts();
-        }
-    }
-    window.confirmForward = confirmForward;
-
-    document.getElementById('groupsBrowserContent').addEventListener('submit', async (e) => {
-        if (e.target && e.target.id === 'createGroupForm') {
-            e.preventDefault();
-            const nameInput = document.getElementById('groupName');
-            const descInput = document.getElementById('groupDescription');
-            const response = await api('/groups', { method: 'POST', body: { name: nameInput.value, description: descInput.value } });
-            if (response && response.message && !response.group_id) {
-                alert(response.message);
-                return;
-            }
-            nameInput.value = '';
-            descInput.value = '';
-            loadGroups();
-        } else if (e.target && e.target.id === 'newTopicFormInline') {
-            e.preventDefault();
-            if (!activeBrowseGroupId) return;
-            const input = document.getElementById('newTopicTitleInline');
-            await api(`/groups/${activeBrowseGroupId}/topics`, { method: 'POST', body: { title: input.value } });
-            input.value = '';
-            loadBrowseTopics();
-        } else if (e.target && e.target.id === 'dashComposerForm') {
-            e.preventDefault();
-            if (!activeBrowseTopicId) return;
-            const textarea = document.getElementById('dashComposerInput');
-            const excludeIds = Array.from(document.querySelectorAll('#dashExclusionList input[type="checkbox"]:checked'))
-                .map(cb => Number(cb.value));
-            await api(`/topics/${activeBrowseTopicId}/posts`, { method: 'POST', body: { content: textarea.value, exclude_user_ids: excludeIds } });
-            textarea.value = '';
-            textarea.style.height = 'auto';
-            loadBrowsePosts();
-        }
+ 
+    document.getElementById('createGroupForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        await api('/groups', {
+            method: 'POST',
+            body: { name: document.getElementById('groupName').value, description: document.getElementById('groupDescription').value },
+        });
+        e.target.reset();
+        loadGroups();
     });
-
+ 
     document.getElementById('toggleQuizFormBtn').addEventListener('click', () => {
         const form = document.getElementById('quizConfigForm');
         form.style.display = form.style.display === 'none' ? 'block' : 'none';
     });
-
+ 
     let questionRowCount = 0;
-
+ 
     function addQuestionRow() {
         questionRowCount++;
         const wrapper = document.createElement('div');
@@ -713,7 +204,7 @@
             <input type="number" class="qMarks" value="1" min="1" style="width:60px; padding:4px;">
         `;
         document.getElementById('questionMatrix').appendChild(wrapper);
-
+ 
         wrapper.querySelector('.removeQuestionBtn').addEventListener('click', () => {
             if (document.querySelectorAll('.question-row').length > 1) {
                 wrapper.remove();
@@ -722,16 +213,16 @@
             }
         });
     }
-
+ 
     document.getElementById('addQuestionBtn').addEventListener('click', addQuestionRow);
-
+ 
     function resetQuestionMatrix() {
         document.getElementById('questionMatrix').innerHTML = '';
         questionRowCount = 0;
         addQuestionRow();
     }
     resetQuestionMatrix();
-
+ 
     document.getElementById('quizConfigForm').addEventListener('submit', async (e) => {
         e.preventDefault();
         const groupId = document.getElementById('quizGroupId').value;
@@ -744,7 +235,7 @@
             correct_option: row.querySelector('.qCorrect').value,
             marks: parseInt(row.querySelector('.qMarks').value) || 1,
         }));
-
+ 
         const payload = {
             title: document.getElementById('quizTitle').value,
             scheduled_date: document.getElementById('scheduledDate').value,
@@ -752,7 +243,7 @@
             duration_minutes: parseInt(document.getElementById('durationMinutes').value),
             questions,
         };
-
+ 
         const res = await api(`/groups/${groupId}/quizzes`, { method: 'POST', body: payload });
         if (res && !res.errors) {
             alert(`Quiz scheduled with ${questions.length} question(s). It will open automatically at the scheduled time.`);
@@ -764,11 +255,11 @@
             alert('Failed to save. Check that every question row is filled in and start time is HH:MM (e.g. 14:00).');
         }
     });
-
+ 
     async function loadLecturerQuizzes() {
         const container = document.getElementById('lecturerQuizzes');
         const quizzes = await api('/me/quizzes') || [];
-
+ 
         container.innerHTML = quizzes.map(q => {
             const groupName = q.group?.name ?? 'Unknown group';
             const schedule = q.configuration ? `${q.configuration.scheduled_date} at ${q.configuration.start_time}` : '';
@@ -779,7 +270,7 @@
                 actions += `<button class="btn btn-secondary close-quiz-btn" type="button" data-quiz-id="${q.quiz_id}" style="padding: 6px 12px; font-size: 13px; margin-left: 6px;">Close</button>`;
             }
             actions += `<button class="btn btn-secondary view-results-btn" type="button" data-quiz-id="${q.quiz_id}" style="padding: 6px 12px; font-size: 13px; margin-left: 6px;">View results</button>`;
-
+ 
             return `
                 <div class="card">
                     <strong>${q.title}</strong> <span class="muted">(${groupName})</span>
@@ -789,7 +280,7 @@
                 </div>
             `;
         }).join('') || '<div class="empty-state">You have not created any quizzes yet.</div>';
-
+ 
         container.querySelectorAll('.publish-quiz-btn').forEach(btn => {
             btn.addEventListener('click', async () => {
                 await api(`/quizzes/${btn.dataset.quizId}/publish`, { method: 'POST' });
@@ -807,7 +298,7 @@
                 const quizId = btn.dataset.quizId;
                 const resultsBox = container.querySelector(`.quiz-results[data-quiz-id="${quizId}"]`);
                 if (resultsBox.style.display === 'block') { resultsBox.style.display = 'none'; return; }
-
+ 
                 const results = await api(`/quizzes/${quizId}/results`) || [];
                 resultsBox.innerHTML = results.length ? `
                     <table>
@@ -827,11 +318,11 @@
             });
         });
     }
-
+ 
     async function loadCriteriaList(groupId) {
         const listEl = document.getElementById('criteriaList');
         if (!groupId) { listEl.textContent = 'Select a group above.'; return; }
-
+ 
         listEl.textContent = 'Loading…';
         const criteria = await api(`/groups/${groupId}/scoring-criteria`) || [];
         listEl.innerHTML = criteria.length ? `
@@ -845,22 +336,22 @@
             </table>
         ` : '<div class="empty-state">No scoring criteria set for this group yet.</div>';
     }
-
+ 
     document.getElementById('criteriaGroupId').addEventListener('change', (e) => {
         loadCriteriaList(e.target.value);
     });
-
+ 
     document.getElementById('criteriaForm').addEventListener('submit', async (e) => {
         e.preventDefault();
         const groupId = document.getElementById('criteriaGroupId').value;
         if (!groupId) { alert('Please select a group first.'); return; }
-
+ 
         const payload = {
             description: document.getElementById('criteriaDescription').value,
             activity_type: document.getElementById('criteriaActivityType').value,
             max_marks: parseFloat(document.getElementById('criteriaMaxMarks').value),
         };
-
+ 
         const res = await api(`/groups/${groupId}/scoring-criteria`, { method: 'POST', body: payload });
         if (res && !res.errors) {
             e.target.reset();
@@ -870,7 +361,7 @@
             alert('Failed to save scoring criteria.');
         }
     });
-
+ 
     async function loadNotifications() {
         const data = await api('/notifications');
         const notifications = (data && (data.data || data)) || [];
@@ -878,15 +369,17 @@
             <div style="margin-bottom: 4px;"><strong>${n.type}</strong>: ${n.message}</div>
         `).join('') || '<div class="empty-state">No notifications yet.</div>';
     }
-
+ 
     async function init() {
-        initDashSidebar();
+        initDashSidebar(document, 'panel-groups');
         await loadWelcome();
         await loadGroups();
         loadLecturerQuizzes();
         loadNotifications();
     }
-
+ 
     init();
 </script>
 @endsection
+ 
+

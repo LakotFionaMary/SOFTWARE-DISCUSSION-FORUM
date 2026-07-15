@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use App\Observers\PostObserver;
 
 /**
  * Post - one message written by a member inside a topic. See SDD 4.2 "Posts" table.
@@ -17,6 +18,12 @@ class Post extends Model
     protected $fillable = ['topic_id', 'author_id', 'content', 'attachment_url', 'posted_at', 'is_flagged'];
 
     protected $casts = ['posted_at' => 'datetime', 'is_flagged' => 'boolean'];
+
+
+   protected static function booted(): void
+    {
+        static::observe(PostObserver::class);
+    }
 
     public function topic(): BelongsTo
     {

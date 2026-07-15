@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\Concerns\TracksParticipation;
 use App\Models\Post;
 use App\Models\Reply;
 use App\Services\NotificationService;
+use App\Events\MessageBroadcast;
 use Illuminate\Http\Request;
 
 /**
@@ -27,11 +28,6 @@ class ReplyController extends Controller
 
         $author = $request->user();
 
-        // pk added--------
-          if (! $author->isMemberOf($post->topic->group_id)) {
-            return response()->json(['message' => 'You must be a member of this post\'s group to reply.'], 403);
-        }
-
         if ($author->isBlacklistedIn($post->topic->group_id)) {
             return response()->json(['message' => 'You are blacklisted from replying in this group.'], 403);
         }
@@ -42,6 +38,10 @@ class ReplyController extends Controller
             'content' => $request->content,
             'replied_at' => now(),
         ]);
+        event(new MessageBroadcast($reply, $post->topic_id));
+        // event(new MessageBroadcast($post));
+
+       // event(new MessageBroadcast($post->topic_id, 'reply', $reply->load('author')->toArray()));
 
         $author->update(['last_active_at' => now()]);
         $this->recordParticipation($author, $post->topic->group_id, 'reply');

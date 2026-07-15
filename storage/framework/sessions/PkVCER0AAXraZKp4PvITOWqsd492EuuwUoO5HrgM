@@ -1,1 +1,0 @@
-a:4:{s:6:"_token";s:40:"apy6HsPojtQ65kMhFrOrfq3lL4uDh7V4xT1Y9CjE";s:9:"_previous";a:2:{s:3:"url";s:30:"http://127.0.0.1:8888/topics/1";s:5:"route";s:11:"topics.show";}s:6:"_flash";a:2:{s:3:"old";a:0:{}s:3:"new";a:0:{}}s:3:"url";a:1:{s:8:"intended";s:41:"http://127.0.0.1:8000/api/topics/1/export";}}

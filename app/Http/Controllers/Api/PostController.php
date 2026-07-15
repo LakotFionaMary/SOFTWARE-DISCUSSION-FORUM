@@ -4,10 +4,12 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Api\Concerns\TracksParticipation;
+use App\Jobs\GenerateUserRecommendations;
 use App\Models\Post;
 use App\Models\PostExclusion;
 use App\Models\Topic;
 use App\Services\NotificationService;
+use App\Events\MessageBroadcast;
 use Illuminate\Http\Request;
 
 /**
@@ -25,11 +27,6 @@ class PostController extends Controller
 
     public function index(Request $request, Topic $topic)
     {
-        //pk addded
-         if (! $request->user()->isMemberOf($topic->group_id)) {
-            return response()->json(['message' => 'You must be a member of this topic\'s group to view its posts.'], 403);
-        }
-
         $userId = $request->user()->user_id;
 
         // Selective communication: hide posts that exclude the requesting user.
@@ -52,10 +49,6 @@ class PostController extends Controller
         ]);
 
         $author = $request->user();
-        // pk added
-         if (! $author->isMemberOf($topic->group_id)) {
-            return response()->json(['message' => 'You must be a member of this topic\'s group to post here.'], 403);
-        }
 
         if ($author->isBlacklistedIn($topic->group_id)) {
             return response()->json(['message' => 'You are blacklisted from posting in this group.'], 403);
@@ -68,17 +61,25 @@ class PostController extends Controller
             'attachment_url' => $request->attachment_url,
             'posted_at' => now(),
         ]);
+        $post->load('author');
+        broadcast(new MessageBroadcast($post, $post->topic_id));
 
-        // FIX: Using individual properties to bypass potential $fillable mass-assignment protection issues on PostExclusion
+//broadcast(new MessageBroadcast($post))->toOthers();
+
+        // RIGHT: Pass only the $post model instance
+        // event(new MessageBroadcast($post));
+        //event(new MessageBroadcast($topic->topic_id, 'post', $post->load('author')->toArray()));
+
         foreach ($request->input('exclude_user_ids', []) as $excludedUserId) {
-            $exclusion = new PostExclusion();
-            $exclusion->post_id = $post->post_id;
-            $exclusion->excluded_user_id = (int) $excludedUserId;
-            $exclusion->save();
+            PostExclusion::create(['post_id' => $post->post_id, 'excluded_user_id' => $excludedUserId]);
         }
 
         $author->update(['last_active_at' => now()]);
         $this->recordParticipation($author, $topic->group_id, 'post');
+
+        // Refresh this user's recommendations now that their reply history
+        // has changed (new category weight from this post).
+        GenerateUserRecommendations::dispatch($author);
 
         // Notify the topic creator (and, in a fuller implementation, every
         // non-excluded group member) of the new post.
