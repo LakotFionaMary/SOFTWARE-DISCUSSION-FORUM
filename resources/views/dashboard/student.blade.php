@@ -437,12 +437,23 @@
     function groupsViewHtml() {
         const rows = myGroups.map(g => {
             const joined = g.is_member || g.is_group_admin;
+            const isBanned = g.is_banned || g.banned;
+
+            const clickHandler = isBanned
+            ? `alert('You are blacklisted/banned from this group.')`
+            : (joined
+                ? `openGroupTopics(${g.group_id}, '${escAttr(g.name)}')`
+                : `showNotMemberNotice(${g.group_id})`);
             return `
-                <div class="group-entry" data-group-id="${g.group_id}">
-                    <div class="group-item" onclick="openGroupTopics(${g.group_id}, '${escAttr(g.name)}')">
-                        <div class="group-info">
-                            <strong>${g.name}</strong>
-                            <div class="muted">${g.members_count ?? 0} members · ${g.topics_count ?? 0} topics</div>
+                <div class="group-item" data-group-id="${g.group_id}" onclick="${clickHandler}">
+                <div class="group-info">
+                    <strong>${g.name}${isBanned ? ' <span class="badge" style="background:#dc2626; color:#fff; margin-left:6px; font-size:11px;">Banned</span>' : ''}</strong>
+                    <div class="muted">${g.members_count ?? 0} members · ${g.topics_count ?? 0} topics</div>
+                    ${!isBanned && !joined ? `
+                        <div class="muted" id="notMemberNotice-${g.group_id}" style="display:none; color:#b45309; font-weight:600; margin-top:2px;">
+                            You're not a member of this group yet — join to view topics.
+                        </div>
+                    ` : ''}
                         </div>
                         ${joined
                             ? '<span class="badge role-student">Joined</span>'
