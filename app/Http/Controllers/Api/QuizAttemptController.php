@@ -19,23 +19,59 @@ class QuizAttemptController extends Controller
     use TracksParticipation;
 
     /** Step 1: student opens the quiz; a QuizAttempt is created/resumed. */
-    public function start(Request $request, Quiz $quiz)
-    {
-        if ($request->user()->isBlacklistedIn($quiz->group_id)) {
-            return response()->json(['message' => 'You are blacklisted from this group.'], 403);
-        }
-
-        if ($quiz->status !== 'Open') {
-            return response()->json(['message' => 'This quiz is not currently open.'], 422);
-        }
-
-        $attempt = QuizAttempt::firstOrCreate(
-            ['quiz_id' => $quiz->quiz_id, 'user_id' => $request->user()->user_id],
-            ['started_at' => now()]
-        );
-
-        return response()->json($attempt->load('quiz.questions'), 201);
+ /** Step 1: student opens the quiz; a QuizAttempt is created/resumed. */
+public function start(Request $request, Quiz $quiz)
+{
+    if ($request->user()->isBlacklistedIn($quiz->group_id)) {
+        return response()->json(['message' => 'You are blacklisted from this group.'], 403);
     }
+
+    if ($quiz->status !== 'Open') {
+        return response()->json(['message' => 'This quiz is not currently open.'], 422);
+    }
+
+    $config = $quiz->configuration;
+
+    $opensAt = null;
+    $endsAt = null;
+
+    if ($config) {
+        $opensAt = \Illuminate\Support\Carbon::parse(
+            $config->scheduled_date->toDateString() . ' ' . $config->start_time
+        );
+        $endsAt = $opensAt->copy()->addMinutes((int) $config->duration_minutes);
+
+        // Don't let a student start before the scheduled hour, even if
+        // the quiz was published early.
+        if (now()->lt($opensAt)) {
+            return response()->json([
+                'message' => "This quiz opens at {$opensAt->format('Y-m-d H:i')}.",
+            ], 422);
+        }
+
+        // The scheduled window has already elapsed (e.g. auto-close
+        // hasn't run yet this minute) — don't hand out a fresh timer.
+        if (now()->gte($endsAt)) {
+            return response()->json([
+                'message' => 'This quiz\'s scheduled window has ended.',
+            ], 422);
+        }
+    }
+
+    $attempt = QuizAttempt::firstOrCreate(
+        ['quiz_id' => $quiz->quiz_id, 'user_id' => $request->user()->user_id],
+        ['started_at' => now()]
+    );
+
+    $attempt->load('quiz.questions', 'quiz.configuration');
+
+    $secondsRemaining = $endsAt ? max(0, $endsAt->timestamp - now()->timestamp) : null;
+
+    $payload = $attempt->toArray();
+    $payload['seconds_remaining'] = $secondsRemaining;
+
+    return response()->json($payload, 201);
+}
 
     /**
      * Step 4-6: manual submission or timer expiry (auto_submitted=true)

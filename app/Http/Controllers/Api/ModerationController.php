@@ -59,6 +59,7 @@ class ModerationController extends Controller
                     Blacklist::create([
                         'user_id' => $member->user_id,
                         'group_id' => $group->group_id,
+                        'reason' => Blacklist::REASON_INACTIVITY,
                         'start_date' => now(),
                         'duration_days' => $group->blacklist_duration_days,
                         'end_date' => now()->addDays($group->blacklist_duration_days),
@@ -104,6 +105,32 @@ class ModerationController extends Controller
         ]);
     }
 
+ 
+    public function warningsIndex()
+    {
+        $warnings = Warning::with(['user', 'group'])
+            ->latest('issue_date')
+            ->get();
+
+        return response()->json($warnings);
+    }
+
+    /**
+     * Lists currently-active blacklists (across all groups) so an admin or
+     * lecturer can find one to lift early — in particular reason='inactivity'
+     * blacklists, which lock the member's whole account and previously had
+     * no way to be located from the UI before end_date passed on its own.
+     */
+    public function blacklistsIndex()
+    {
+        $blacklists = Blacklist::with(['user', 'group'])
+            ->where('end_date', '>', now())
+            ->latest('start_date')
+            ->get();
+
+        return response()->json($blacklists);
+    }
+
     /** Resolve a warning once the member becomes active again. */
     public function resolveWarning(Warning $warning)
     {
@@ -114,13 +141,17 @@ class ModerationController extends Controller
 
     public function blacklistUser(Request $request, Group $group, User $user)
     {
-        $request->validate(['duration_days' => 'nullable|integer|min:1']);
+        $request->validate([
+            'duration_days' => 'nullable|integer|min:1',
+            'reason' => 'nullable|in:manual,inactivity',
+        ]);
 
         $days = $request->input('duration_days', $group->blacklist_duration_days);
 
         $blacklist = Blacklist::create([
             'user_id' => $user->user_id,
             'group_id' => $group->group_id,
+            'reason' => $request->input('reason', Blacklist::REASON_MANUAL),
             'start_date' => now(),
             'duration_days' => $days,
             'end_date' => now()->addDays($days),

@@ -1,5 +1,6 @@
 <?php
 
+use Illuminate\Support\Facades\Broadcast;
 use App\Http\Middleware\BlacklistMiddleware;
 use App\Http\Middleware\RoleMiddleware;
 use Illuminate\Foundation\Application;
@@ -12,16 +13,16 @@ return Application::configure(basePath: dirname(__DIR__))
         api: __DIR__.'/../routes/api.php',
         commands: __DIR__.'/../routes/console.php',
         channels: __DIR__.'/../routes/channels.php',
-        then: function () {
-            // Explicitly register the broadcasting auth route under the api middleware prefix
-            Broadcast::routes(['prefix' => 'api', 'middleware' => ['api', 'auth:sanctum']]);
-        },
+        
         health: '/up',
     )
 
-   ->withBroadcasting(
+    ->withBroadcasting(
     __DIR__.'/../routes/channels.php',
-    ['middleware' => ['web', 'auth']],
+     [
+        'prefix' => 'api',
+        'middleware' => ['api', 'auth:sanctum'],
+    ],
 )
     
     ->withMiddleware(function (Middleware $middleware) {

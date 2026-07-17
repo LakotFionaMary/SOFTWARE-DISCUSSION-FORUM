@@ -5,6 +5,7 @@ use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schedule;
 
+
 Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote');
@@ -18,3 +19,15 @@ Schedule::call(function () {
     $controller = app(\App\Http\Controllers\Api\ModerationController::class);
     Group::all()->each(fn (Group $group) => $controller->scanInactivity($group));
 })->daily()->name('inactivity-watchdog');
+
+
+Schedule::command('quizzes:close-expired')->everyMinute();
+
+/**
+ * Recommendation refresh safety net (SDD 5.8). The observers in
+ * AppServiceProvider handle real-time refresh on reply/topic/group
+ * events; this just catches anything that slipped through (e.g. a queue
+ * worker that was briefly down).
+ */
+Schedule::command('recommendations:refresh-all')->everySixHours()->name('recommendations-refresh');
+

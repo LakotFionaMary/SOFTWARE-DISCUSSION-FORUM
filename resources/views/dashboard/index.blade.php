@@ -5,9 +5,7 @@
 @section('content')
 <div class="eyebrow">Discussion Dashboard</div>
 <h1>Taking you to your dashboard…</h1>
-<p class="muted" id="fallbackMsg" style="display:none;">
-    If you are not redirected automatically, <a href="/dashboard/student">click here</a>.
-</p>
+
 @endsection
  
 @section('scripts')
