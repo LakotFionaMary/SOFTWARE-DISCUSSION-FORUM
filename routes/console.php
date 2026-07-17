@@ -22,3 +22,12 @@ Schedule::call(function () {
 
 
 Schedule::command('quizzes:close-expired')->everyMinute();
+
+/**
+ * Recommendation refresh safety net (SDD 5.8). The observers in
+ * AppServiceProvider handle real-time refresh on reply/topic/group
+ * events; this just catches anything that slipped through (e.g. a queue
+ * worker that was briefly down).
+ */
+Schedule::command('recommendations:refresh-all')->everySixHours()->name('recommendations-refresh');
+

@@ -22,11 +22,44 @@ class TopicController extends Controller
     {
     }
 
-    public function index(Group $group)
+    /**
+     * Supports optional ?search= (title match) and ?category= filters on
+     * top of the existing pagination, so the group page can narrow down
+     * the full topic list instead of only ever showing page 1.
+     */
+    public function index(Group $group, Request $request)
     {
+        $query = $group->topics()->withCount('posts')->latest();
+
+        if ($request->filled('search')) {
+            $escaped = str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $request->query('search'));
+            $query->where('title', 'like', '%' . $escaped . '%');
+        }
+
+        if ($request->filled('category')) {
+            $query->where('category', $request->query('category'));
+        }
+
         return response()->json(
-            $group->topics()->withCount('posts')->latest()->paginate(20)
+            $query->paginate(20)->withQueryString()
         );
+    }
+
+    /**
+     * Distinct category list for this group, used to populate the filter
+     * dropdown. Deliberately separate from index() so the dropdown's
+     * options aren't limited to whatever happens to be on the current
+     * page/search results.
+     */
+    public function categories(Group $group)
+    {
+        $categories = $group->topics()
+            ->whereNotNull('category')
+            ->distinct()
+            ->orderBy('category')
+            ->pluck('category');
+
+        return response()->json($categories);
     }
 
     /** Launching new discussion topic thread use case (SDD Table 33). */
