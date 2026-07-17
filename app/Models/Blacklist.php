@@ -13,7 +13,14 @@ class Blacklist extends Model
     protected $table = 'blacklists';
     protected $primaryKey = 'blacklist_id';
 
-    protected $fillable = ['user_id', 'group_id', 'start_date', 'duration_days', 'end_date'];
+    protected $fillable = ['user_id', 'group_id', 'reason', 'start_date', 'duration_days', 'end_date'];
+
+    /** Blacklists with this reason lock the whole account (see AuthController::login()). */
+    public const REASON_INACTIVITY = 'inactivity';
+
+    /** Blacklists with these reasons only suspend the member from the one group. */
+    public const REASON_FLAG = 'flag';
+    public const REASON_MANUAL = 'manual';
 
     protected $casts = ['start_date' => 'datetime', 'end_date' => 'datetime'];
 

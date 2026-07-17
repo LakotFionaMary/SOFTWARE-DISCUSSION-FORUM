@@ -27,10 +27,22 @@ class NotificationService
             'is_read' => false,
         ]);
 
-        // Push to the user's private channel for online clients. Offline
-        // clients pick this up later via the Sync module (SDD 5.4) or by
-        // polling the notifications index endpoint.
-        broadcast(new \App\Events\NotificationBroadcast($notification))->toOthers();
+        // FIXED: broadcast() throws a BroadcastException whenever the
+        // configured WebSocket server (Pusher/soketi/Reverb) isn't
+        // reachable — e.g. nothing listening on 127.0.0.1:8080 locally.
+        // That exception was propagating straight out of send(), turning
+        // an otherwise-successful notification save into a 500 for the
+        // whole request (this is what was happening to /posts/{id}/flag
+        // and /replies/{id}/flag after the type/role fixes: the row saved
+        // fine, then this line blew up). Real-time push is a nice-to-have
+        // on top of the persisted row — offline/non-connected clients
+        // already fall back to polling GET /notifications — so a failure
+        // here is logged and swallowed instead of failing the request.
+        try {
+            broadcast(new \App\Events\NotificationBroadcast($notification))->toOthers();
+        } catch (\Throwable $e) {
+            report($e);
+        }
 
         return $notification;
     }

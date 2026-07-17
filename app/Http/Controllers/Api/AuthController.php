@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Blacklist;
 use App\Models\Role;
 use App\Models\User;
 use App\Models\UserRole;
@@ -91,8 +92,12 @@ class AuthController extends Controller
             return response()->json(['message' => 'Invalid credentials.'], 401);
         }
 
-        // Suspended account alternative flow.
-        if ($user->blacklists()->where('end_date', '>', now())->exists()) {
+        // Suspended account alternative flow. Only an inactivity-triggered
+        // blacklist locks the whole account out of login — a flag-triggered
+        // or manual blacklist only suspends the member from that one group
+        // (enforced separately by BlacklistMiddleware on that group's
+        // routes), so it must not block login here.
+        if ($user->blacklists()->where('reason', Blacklist::REASON_INACTIVITY)->where('end_date', '>', now())->exists()) {
             return response()->json([
                 'message' => 'Your account is currently suspended due to prolonged inactivity.',
             ], 403);
