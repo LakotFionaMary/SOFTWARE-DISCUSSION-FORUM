@@ -305,7 +305,7 @@
                 <!--a href="/dashboard?panel=panel-groups" data-dash-panel="panel-groups" data-role="student,lecturer,administrator" class="app-nav-item {{ (request()->is('groups/*') || request()->is('topics/*')) ? 'active' : '' }}">
                     <span class="icon">💬</span> Topics
                 </a-->
-                <a href="/dashboard?panel=panel-group-admin" data-dash-panel="panel-group-admin" id="navGroupAdmin" style="display:none;" class="app-nav-item {{ $panel === 'panel-group-admin' ? 'active' : '' }}">
+                <a href="/dashboard?panel=panel-group-admin" data-dash-panel="panel-group-admin" id="navGroupAdmin" data-role="administrator,lecturer" class="app-nav-item {{ $panel === 'panel-group-admin' ? 'active' : '' }}">
                     <span class="icon">🛡️</span> Group Admin
                 </a>
 
