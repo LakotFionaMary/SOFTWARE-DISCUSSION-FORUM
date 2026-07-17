@@ -66,6 +66,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // -------------------------------------------------------------
     Route::get('/topics', [TopicController::class, 'index']);
     Route::get('/groups/{group}/topics', [TopicController::class, 'index']);
+  Route::get('/groups/{group}/topics/categories', [TopicController::class, 'categories']);
     Route::post('/groups/{group}/topics', [TopicController::class, 'store'])
         ->middleware('blacklist');
     Route::get('/topics/{topic}', [TopicController::class, 'show']);
@@ -133,6 +134,8 @@ Route::middleware('auth:sanctum')->group(function () {
     // -------------------------------------------------------------
     // 5.6 Grading and Participation Module
     // -------------------------------------------------------------
+
+  Route::get('/groups/{group}/topics/categories', [App\Http\Controllers\Api\TopicController::class, 'categories']);
     Route::get('/groups/{group}/leaderboard', [GradingController::class, 'leaderboard']);
 
     // Student-facing: "my grade" breakdown (participation + quizzes) for a group.

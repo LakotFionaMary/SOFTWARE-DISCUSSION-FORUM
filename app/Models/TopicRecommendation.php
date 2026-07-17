@@ -6,8 +6,15 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
- * TopicRecommendation - ML-generated suggestion pointing a user to an unseen relevant topic.
- * See SDD 4.2 "TopicRecommendation" table and 5.8 ML Classification and Recommendation.
+ * TopicRecommendation - per-user cache of a topic's activity ranking.
+ * See SDD 4.2 "TopicRecommendation" table and 5.8 ML Classification and
+ * Recommendation.
+ *
+ * NOTE: previously this only held rows for topics the user hadn't posted
+ * in yet ("unseen"). It now holds a row for every topic in the user's
+ * groups — seen and unseen alike — since the recommendation feed ranks
+ * all of them by post-count share. Anything reading this table should
+ * not assume a row implies the topic is unseen by that user.
  */
 class TopicRecommendation extends Model
 {

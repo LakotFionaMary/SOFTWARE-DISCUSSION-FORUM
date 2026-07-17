@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>@yield('title', 'Smart Discussion Forum')</title>
-    <meta name="csrf-token" content="{{ csrf_token() }}">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>@yield('title', 'Smart Discussion Forum')</title>
+<meta name="csrf-token" content="{{ csrf_token() }}">
     
 @vite(['resources/js/app.js'])
  <script src="https://js.pusher.com/8.0.1/pusher.min.js"></script>
@@ -62,6 +62,9 @@
             font-size: 16px; width: 30px; height: 30px; display: inline-flex; align-items: center; justify-content: center;
             background: rgba(47,111,94,.25); border-radius: 8px;
         }
+        /* Hamburger toggle: only ever shown on mobile (see the 760px query
+           below). Hidden here so it takes no space/has no effect on desktop. */
+        .mobile-menu-toggle { display: none; }
         .app-nav { display: flex; flex-direction: column; padding: 4px 10px; overflow-y: auto; flex: 1; }
         .app-nav-section {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
@@ -105,7 +108,7 @@
         .app-avatar {
             width: 34px; height: 34px; border-radius: 50%; flex-shrink: 0;
             background: var(--accent); color: #fff; font-weight: 700; font-size: 13px;
-            display: flex; align-items: center; justify-content: center;
+            display: flex; align-items: center; justify-content: center; overflow: hidden;
         }
         .app-sidebar-footer .app-user-info { min-width: 0; }
         .app-sidebar-footer .app-user { opacity: .9; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -120,14 +123,25 @@
         .app-main:has(.chat-thread) .content-col { max-width: 1400px; }
         @media (max-width: 760px) {
             .app-shell { flex-direction: column; }
-            .app-sidebar { width: 100%; height: auto; position: static; flex-direction: row; align-items: center; }
-            .app-brand { padding: 12px 14px; }
-            .app-nav { flex-direction: row; overflow-x: auto; padding: 0 6px; }
-            .app-nav-section { display: none; }
-            .app-nav-item { padding: 10px 12px; flex-shrink: 0; }
+            .app-sidebar { width: 100%; height: auto; position: relative; flex-direction: column; align-items: stretch; }
+            .app-brand { padding: 12px 14px; display: flex; align-items: center; justify-content: space-between; }
+            .mobile-menu-toggle {
+                display: inline-flex; align-items: center; justify-content: center;
+                width: 34px; height: 34px; border-radius: 8px; flex-shrink: 0;
+                background: rgba(255,255,255,.08); border: none; color: var(--paper); cursor: pointer;
+            }
+            .mobile-menu-toggle:hover { background: rgba(255,255,255,.15); }
+            /* Collapsed by default on mobile; JS toggles .mobile-open. Sits in
+               normal flow (not an overlay) so it simply pushes content down
+               rather than needing z-index/backdrop handling. */
+            .app-nav { display: none; flex-direction: column; overflow-x: visible; padding: 4px 10px 10px; max-height: 70vh; overflow-y: auto; }
+            .app-nav.mobile-open { display: flex; }
+            .app-nav-item { padding: 11px 12px; flex-shrink: initial; }
             .app-nav-item:hover { transform: none; }
-            .app-nav-item.active::before { left: 50%; top: auto; bottom: 0; transform: translateX(-50%); width: 18px; height: 3px; border-radius: 3px 3px 0 0; }
-            .app-sidebar-footer { border-top: none; padding: 10px 14px; }
+            .app-nav-item.active::before { left: -10px; top: 50%; bottom: auto; transform: translateY(-50%); width: 3px; height: 18px; border-radius: 0 3px 3px 0; }
+            .app-sidebar-footer { border-top: 1px solid rgba(255,255,255,.12); padding: 10px 14px; }
+            .app-main { padding: 16px 12px 60px; }
+            .dash-main { padding: 14px 12px; }
         }
         /* Auth pages (login/register/rules) render full-bleed, no sidebar */
         body.auth-page .app-sidebar { display: none; }
@@ -296,7 +310,12 @@
     @endphp
     <div class="app-shell">
         <aside class="app-sidebar">
-            <div class="app-brand"><span class="app-brand-icon">🚀</span> SDF</div>
+            <div class="app-brand">
+                <span style="display:flex; align-items:center; gap:10px;"><span class="app-brand-icon">🚀</span> SDF</span>
+                <button type="button" class="mobile-menu-toggle" id="mobileMenuToggle" aria-label="Open menu" aria-expanded="false">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+                </button>
+            </div>
             <nav class="app-nav">
                 <div class="app-nav-section">Workspace</div>
                 <a href="/dashboard?panel=panel-groups" data-dash-panel="panel-groups" data-role="student,lecturer,administrator" class="app-nav-item {{ ($onDashboard && !$onAdminDash && ($panel === 'panel-groups' || !$panel)) || ($onAdminDash && $panel === 'panel-groups') ? 'active' : '' }}">
@@ -343,7 +362,10 @@
                 </a>
             </nav>
             <div class="app-sidebar-footer">
-                <div class="app-avatar" id="sidebarAvatar">?</div>
+                <div class="app-avatar" id="sidebarAvatar">
+                    <img id="sidebarAvatarImg" src="" alt="" style="display:none; width:100%; height:100%; object-fit:cover; border-radius:50%;">
+                    <span id="sidebarAvatarInitials">?</span>
+                </div>
                 <div class="app-user-info">
                     <div class="app-user" id="sidebarUserName">&nbsp;</div>
                     <a href="#" id="logoutLink">Log out</a>
@@ -372,6 +394,23 @@
             if (res.status === 401) { window.location = '/'; return; }
             return res.json();
         }
+        // Mobile hamburger menu: nav sits collapsed in normal document flow
+        // (see the 760px query) and this just toggles it open/closed. No-op
+        // on desktop since the button is display:none there.
+        document.getElementById('mobileMenuToggle')?.addEventListener('click', () => {
+            const nav = document.querySelector('.app-nav');
+            const btn = document.getElementById('mobileMenuToggle');
+            if (!nav || !btn) return;
+            const isOpen = nav.classList.toggle('mobile-open');
+            btn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+        });
+        document.querySelectorAll('.app-nav-item').forEach(item => {
+            item.addEventListener('click', () => {
+                document.querySelector('.app-nav')?.classList.remove('mobile-open');
+                document.getElementById('mobileMenuToggle')?.setAttribute('aria-expanded', 'false');
+            });
+        });
+
         document.getElementById('logoutLink')?.addEventListener('click', async (e) => {
             e.preventDefault();
             await api('/logout', { method: 'POST' });
@@ -422,13 +461,29 @@
             if (nameEl) nameEl.textContent = displayName;
 
             const avatarEl = document.getElementById('sidebarAvatar');
-            if (avatarEl && displayName) {
-                const initials = displayName.trim().split(/\s+/).slice(0, 2).map(w => w[0]).join('').toUpperCase();
-                avatarEl.textContent = initials || '?';
-            }
+            const initials = displayName.trim().split(/\s+/).slice(0, 2).map(w => w[0]).join('').toUpperCase() || '?';
+            updateSidebarAvatar(me.profile_picture ? ('/storage/' + me.profile_picture) : null, initials);
 
             return me;
         }
+
+        // Shared so the profile page can call this the instant an upload
+        // succeeds, instead of waiting for a full page reload to see it
+        // reflected in the sidebar (which is shared across every dashboard).
+        window.updateSidebarAvatar = function (imageUrl, initials) {
+            const imgEl = document.getElementById('sidebarAvatarImg');
+            const initialsEl = document.getElementById('sidebarAvatarInitials');
+            if (!imgEl || !initialsEl) return;
+            if (imageUrl) {
+                imgEl.src = imageUrl;
+                imgEl.style.display = 'block';
+                initialsEl.style.display = 'none';
+            } else {
+                imgEl.style.display = 'none';
+                initialsEl.style.display = '';
+                if (initials) initialsEl.textContent = initials;
+            }
+        };
         // Shows the matching .dash-panel for whichever nav item was clicked
         // in the *global* sidebar (layouts/app.blade.php), which links to
         // pages like /dashboard?panel=panel-quizzes. This used to also wire

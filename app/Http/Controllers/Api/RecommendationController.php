@@ -3,7 +3,8 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Services\RecommendationService;
+use App\Models\Topic;
+use App\Models\TopicRecommendation;
 use Illuminate\Http\Request;
 
 /**
@@ -11,43 +12,49 @@ use Illuminate\Http\Request;
  *
  * Topic classification happens automatically on creation (see
  * TopicController::store). This controller covers the recommendation
- * feed: a persistent, leaderboard-style ranking of topics in the user's
- * joined groups, scored by relevance to their reply history — see
- * RecommendationService::generateForUser() for the actual scoring logic
- * (category activity + title content-similarity via the Flask ML
- * service).
- *
- * Re-ranks live on every load, since the leaderboard includes topics the
- * user has already replied to (replying re-ranks a topic rather than
- * removing it) — this is intentionally NOT a cached/stale read.
- *
- * (A previous version of this controller recomputed scores locally using
- * TopicClassifierService::relevanceScore(), a placeholder formula that
- * ignored the ML service and title content entirely. Removed in favor of
- * routing through RecommendationService, which is also what keeps
- * recommendations fresh in the background after each post — see
- * App\Jobs\GenerateUserRecommendations, dispatched from
- * PostController::store.)
+ * feed: every topic in a user's groups ranked by its share of posts,
+ * seen and unseen topics alike.
  */
 class RecommendationController extends Controller
 {
-    public function __construct(private RecommendationService $recommendations)
-    {
-    }
-
-    /** Home feed recommendations for the authenticated user. */
+    /**
+     * Home feed recommendations for the authenticated user.
+     *
+     * Ranks every topic in the user's groups (both topics they've already
+     * posted in and ones they haven't) by that topic's share of posts
+     * relative to all posts across those topics — the topic with the most
+     * posts shows up first, not just the "unseen" ones. Recomputed live
+     * from the DB on every request (withCount('posts') below), so this
+     * naturally auto-updates each time the dashboard loads — no stale
+     * cached job data involved.
+     */
     public function index(Request $request)
     {
         $user = $request->user();
 
-        // Re-rank live, every load — this is the leaderboard behavior:
-        // topics already replied to stay in the list, just re-scored.
-        $this->recommendations->generateForUser($user);
+        $groupIds = $user->groups()->pluck('groups.group_id');
 
-        $recommendations = $user->topicRecommendations()
-            ->with('topic')
-            ->orderByDesc('relevance_score')
+        // withCount('posts') so the dashboard's "N posts" line and the
+        // ranking itself are both driven by the real, current post count.
+        $topics = Topic::whereIn('group_id', $groupIds)
+            ->withCount('posts')
             ->get();
+
+        $totalPosts = max($topics->sum('posts_count'), 1);
+
+        $recommendations = $topics->map(function (Topic $topic) use ($user, $totalPosts) {
+            $score = round(min(1, $topic->posts_count / $totalPosts), 3);
+
+            $rec = TopicRecommendation::updateOrCreate(
+                ['user_id' => $user->user_id, 'topic_id' => $topic->topic_id],
+                ['relevance_score' => $score, 'generated_at' => now()]
+            );
+            // Attach the already-counted topic so the response doesn't need
+            // a second query that would drop posts_count.
+            $rec->setRelation('topic', $topic);
+
+            return $rec;
+        })->sortByDesc('relevance_score')->values()->take(10);
 
         return response()->json($recommendations);
     }
