@@ -333,6 +333,9 @@
                 <a href="/dashboard?panel=panel-warnings" data-dash-panel="panel-warnings" data-role="administrator" style="display:none;" class="app-nav-item {{ $panel === 'panel-warnings' ? 'active' : '' }}">
                     <span class="icon">⚠️</span> Inactivity Warnings
                 </a>
+                <a href="/dashboard?panel=panel-blacklists" data-dash-panel="panel-blacklists" data-role="administrator" style="display:none;" class="app-nav-item {{ $panel === 'panel-blacklists' ? 'active' : '' }}">
+                    <span class="icon">🚫</span> Blacklisted Users
+                </a>
                 <a href="/admin/users" data-role="administrator" style="display:none;" class="app-nav-item {{ request()->is('admin/users') ? 'active' : '' }}">
                     <span class="icon">🔑</span> Manage Users
                 </a>

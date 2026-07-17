@@ -16,9 +16,32 @@ class GroupController extends Controller
 {
     public function index(Request $request)
     {
-        return response()->json(
-            Group::withCount(['members', 'topics'])->paginate(20)
-        );
+        $userId = $request->user()->user_id;
+
+        // FIXED: this previously returned bare Group rows with no indication
+        // of whether the requesting user is already a member/admin, so the
+        // student dashboard's "Join" button never flipped to "Joined" after
+        // joining — g.is_member / g.is_group_admin were always undefined.
+        // withExists() adds a per-row boolean scoped to this request's user
+        // (not a global column), and is_group_admin covers both the group
+        // owner (admin_id) and any student appointed as an active GroupAdmin.
+        $groups = Group::withCount(['members', 'topics'])
+            ->withExists([
+                'members as is_member' => fn ($q) => $q->where('users.user_id', $userId),
+            ])
+            ->paginate(20);
+
+        $groups->getCollection()->transform(function (Group $group) use ($userId) {
+            $group->is_group_admin = $group->admin_id == $userId
+                || GroupAdmin::where('group_id', $group->group_id)
+                    ->where('user_id', $userId)
+                    ->where('is_active', true)
+                    ->exists();
+
+            return $group;
+        });
+
+        return response()->json($groups);
     }
 
     public function store(Request $request)
