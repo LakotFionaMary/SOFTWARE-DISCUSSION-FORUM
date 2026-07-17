@@ -72,7 +72,10 @@
     /* Reply thread: a connecting guide line + indent applied straight to the
        message itself (one modifier class) instead of an extra wrapper div. */
     .msg-group.is-reply { margin-left: 26px; max-width: calc(78% - 26px); padding-left: 14px; border-left: 2px solid var(--line); }
-
+    
+    /* Flagged post highlight */
+    .msg-group.is-flagged .bubble { outline: 2px solid #dc2626; outline-offset: 2px; }
+ 
     .bubble {
         padding: 8px 12px; border-radius: 12px;
         font-size: 14px; line-height: 1.4; word-wrap: break-word;
@@ -104,6 +107,10 @@
         width: 38px; height: 38px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; cursor: pointer;
     }
     .composer-send svg { width: 18px; height: 18px; }
+    
+     /* Inline "View statistics" shortcut shown to group admins in the topics/posts drill-down */
+    .stats-shortcut {     padding: 5px 12px; font-size: 12.5px;    }
+
 
     /* ---------- Exclude-from-post checklist ---------- */
     .exclusion-wrap { margin-top: 14px; }
@@ -303,6 +310,10 @@
     let activeBrowseTopicTitle = '';
     let currentTopicMessages = []; // index -> {author, content}, used by the Forward modal
 
+     //// added------------------
+    let groupMembersExpanded = false;
+    let allGroupMembers = []; // cache so "show more" doesn't need another API call
+
     // ---- Topics-list search / filter / pagination state (borrowed from index.blade.php) ----
     let browseTopicsPage = 1;
     let browseTopicsSearch = '';
@@ -405,6 +416,19 @@
             });
     };
 
+    //////////////added
+    document.addEventListener('DOMContentLoaded', () => {
+    console.log("DOM loaded. Checking for Laravel Echo...");
+    
+    // Check if we already have a default topic to subscribe to on load
+    // (For example, if your application has a default activeBrowseTopicId variable)
+    if (typeof activeBrowseTopicId !== 'undefined' && activeBrowseTopicId) {
+        window.subscribeToTopic(activeBrowseTopicId);
+    } else {
+        console.log("No active topic selected yet. Waiting for user interaction.");
+    }
+});
+ 
     function escAttr(str) {
         return (str || '').replace(/'/g, "\\'");
     }
@@ -553,10 +577,15 @@ function closeCreateGroupModalOnOuterClick(event) {
     // ---- Topics view now includes search box + category filter + load-more,
     // borrowed from the standalone group-topics page (index.blade.php). ----
     function topicsViewHtml() {
+        // Group admins get a quick shortcut straight to their group statistics
+        // page without having to leave the drill-down view (the full stats
+        // link still also lives in the "Group Admin" sidebar panel).
+        const statsShortcut = isGroupAdmin(activeBrowseGroupId)
+            ? `<a class="btn secondary stats-shortcut" style="float:right;" href="/groups/${activeBrowseGroupId}/statistics">View statistics</a>`
+            : '';
+            /* removed back to groups and added create topic, searching , filtering */
     return `
-        <a class="back-link" onclick="browseGoBack()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
-            Back to groups
-        </a>
+          ${statsShortcut}
         <div class="topics-head">
             <div>
                 <h3>${activeBrowseGroupName}</h3>
@@ -699,18 +728,80 @@ async function loadGroupMembers() {
     listEl.innerHTML = 'Loading members…';
 
     const data = await api(`/groups/${activeBrowseGroupId}/members`);
-    const members = (data && (data.data || data)) || [];
+    allGroupMembers = (data && (data.data || data)) || [];
+     groupMembersExpanded = false; // always start collapsed when modal opens
 
-    listEl.innerHTML = members.map(m => `
+
+    listEl.innerHTML = allGroupMembers.map(m => `
         <div style="display:flex; align-items:center; justify-content:space-between; padding:8px 0; border-bottom:1px solid var(--line);">
             <strong>${m.full_name || m.name}</strong>
             ${m.is_admin ? '<span class="badge" style="background:var(--accent); color:#fff; font-size:11px;">Admin</span>' : ''}
         </div>
     `).join('') || '<div class="empty-state">No members yet.</div>';
+    
+    renderGroupMembersList();
 }
 window.loadGroupMembers = loadGroupMembers;
 
+    function renderGroupMembersList() {
+    const listEl = document.getElementById('groupMembersList');
+    if (!listEl) return;
+
+    if (!allGroupMembers.length) {
+        listEl.innerHTML = '<div class="empty-state">No members yet.</div>';
+        return;
+    }
+
+    const MIN_SHOWN = 3;
+    const visibleMembers = groupMembersExpanded ? allGroupMembers : allGroupMembers.slice(0, MIN_SHOWN);
+    const hasMore = allGroupMembers.length > MIN_SHOWN;
+
+    const rowsHtml = visibleMembers.map(m => `
+        <div style="display:flex; align-items:center; justify-content:space-between; padding:8px 0; border-bottom:1px solid var(--line);">
+            <strong>${m.full_name || m.name}</strong>
+            ${m.is_admin ? '<span class="badge" style="background:var(--accent); color:#fff; font-size:11px;">Admin</span>' : ''}
+        </div>
+    `).join('');
+
+    // Only scrollable once expanded, so the collapsed "peek" of 3 stays compact.
+    const scrollWrapStyle = groupMembersExpanded ? 'max-height:220px; overflow-y:auto;' : '';
+
+    const toggleHtml = hasMore ? `
+        <button type="button" class="back-link" onclick="toggleGroupMembersExpanded()" style="margin-top:10px; width:100%; justify-content:center;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="transform: rotate(${groupMembersExpanded ? '180deg' : '0deg'}); transition: transform 0.15s ease;">
+                <polyline points="6 9 12 15 18 9"/>
+            </svg>
+            ${groupMembersExpanded ? 'Show less' : `Show ${allGroupMembers.length - MIN_SHOWN} more`}
+        </button>
+    ` : '';
+
+    listEl.innerHTML = `
+        <div style="${scrollWrapStyle}">${rowsHtml}</div>
+        ${toggleHtml}
+    `;
+}
+
+function toggleGroupMembersExpanded() {
+    groupMembersExpanded = !groupMembersExpanded;
+    renderGroupMembersList();
+}
+window.toggleGroupMembersExpanded = toggleGroupMembersExpanded;
+
+
     function openGroupTopics(groupId, groupName) {
+
+        const g = myGroups.find(x => x.group_id === groupId);
+        if (g && (g.is_banned || g.banned)) {
+            alert("You are blacklisted and banned from accessing this group.");
+            return;
+        }
+        //////////////added---------------
+        const group = myGroups.find(g => g.group_id === groupId);
+    const joined = group && (group.is_member || group.is_group_admin);
+    if (!joined) {
+        alert('Join this group first to view its topics.');
+        return;
+    }
         activeBrowseGroupId = groupId;
         activeBrowseGroupName = groupName;
         activeBrowseTopicId = null;
@@ -723,6 +814,21 @@ window.loadGroupMembers = loadGroupMembers;
         renderGroupsBrowser();
     }
     window.openGroupTopics = openGroupTopics;
+
+     /////////added------------
+    function showNotMemberNotice(groupId) {
+    // Hide any other open notices first, so only one shows at a time
+    document.querySelectorAll('[id^="notMemberNotice-"]').forEach(el => el.style.display = 'none');
+
+    const el = document.getElementById(`notMemberNotice-${groupId}`);
+    if (!el) return;
+    el.style.display = 'block';
+
+    // Auto-hide after a few seconds so it doesn't linger forever
+    clearTimeout(el._hideTimer);
+    el._hideTimer = setTimeout(() => { el.style.display = 'none'; }, 3000);
+}
+window.showNotMemberNotice = showNotMemberNotice;
 
     function openTopicPosts(topicId, title) {
         activeBrowseTopicId = topicId;
@@ -746,6 +852,44 @@ window.loadGroupMembers = loadGroupMembers;
         renderGroupsBrowser();
     }
     window.browseGoBack = browseGoBack;
+
+    /* ---------- Group members toggle (names under each group card in Groups list) ---------- */
+    const groupMembersCache = {};
+
+    async function toggleGroupMembers(event, groupId) {
+        event.stopPropagation();
+        const namesEl = document.getElementById(`membersNames-${groupId}`);
+        const toggleEl = document.getElementById(`membersToggle-${groupId}`);
+        if (!namesEl || !toggleEl) return;
+
+        const isOpen = namesEl.classList.contains('open');
+        if (isOpen) {
+            namesEl.classList.remove('open');
+            toggleEl.textContent = 'Show members';
+            return;
+        }
+
+        toggleEl.textContent = 'Hide members';
+        namesEl.classList.add('open');
+
+        if (groupMembersCache[groupId]) {
+            namesEl.innerHTML = groupMembersCache[groupId];
+            return;
+        }
+
+        namesEl.innerHTML = '<span class="muted">Loading members…</span>';
+
+        const data = await api(`/groups/${groupId}/members`);
+        const members = (data && (data.data || data)) || [];
+
+        const html = members.map(m => `<span class="member-chip">${m.full_name || m.name}</span>`).join('')
+            || '<span class="muted">No members yet.</span>';
+
+        groupMembersCache[groupId] = html;
+        namesEl.innerHTML = html;
+    }
+    window.toggleGroupMembers = toggleGroupMembers;
+
 
     async function joinGroupInline(event, groupId) {
         event.stopPropagation();
@@ -798,6 +942,17 @@ window.loadGroupMembers = loadGroupMembers;
         if (browseTopicsCategory) params.set('category', browseTopicsCategory);
 
         const data = await api(`/groups/${activeBrowseGroupId}/topics?${params.toString()}`);
+
+        const errMsg = data && (data.error || data.message);
+        const isBanMsg = errMsg && (
+        errMsg.toLowerCase().includes('ban') || errMsg.toLowerCase().includes('blacklist')
+    );
+    if (isBanMsg) {
+        listEl.innerHTML = `<div class="empty-state" style="color:#dc2626; font-weight:bold;">${errMsg}</div>`;
+        const moreBtn = document.getElementById('browseLoadMoreBtn');
+        if (moreBtn) moreBtn.style.display = 'none';
+        return;
+    }
         const items = (data && (data.data || data)) || [];
 
         const rowsHtml = items.map(t => `
@@ -838,10 +993,17 @@ window.loadGroupMembers = loadGroupMembers;
         if (!container) return;
 
         const t = await api(`/topics/${activeBrowseTopicId}`);
-        if (!t || t.message) {
-            container.innerHTML = `<div class="muted">${(t && t.message) || 'This topic could not be loaded.'}</div>`;
+        if (!t || t.message || t.error) {
+            const errorMsg = (t && (t.error || t.message)) || 'This topic could not be loaded.';
+            container.innerHTML = `<div class="muted" style="color: #dc2626; font-weight: bold;">${errorMsg}</div>`;
+            const composer = document.getElementById('dashComposerForm');
+            if (composer) composer.style.display = 'none';
             return;
         }
+
+        // Ensure composer form visibility if accessible
+        const composer = document.getElementById('dashComposerForm');
+        //if (composer) composer.style.display = 'flex';
 
         const myId = window.CURRENT_USER ? window.CURRENT_USER.user_id : null;
         const posts = t.posts || [];
@@ -870,12 +1032,20 @@ window.loadGroupMembers = loadGroupMembers;
 
     // One bubble + its Reply/Forward/timestamp row. `isReply` just adds the
     // connecting-line modifier class — no extra wrapper div needed.
-    function renderMsgGroup(side, authorName, content, time, isReply) {
+   function renderMsgGroup(side, authorName, content, time, isReply, postId, flagged) {
         const msgIndex = currentTopicMessages.length;
-        currentTopicMessages.push({ author: authorName, content });
+        currentTopicMessages.push({ author: authorName, content, postId, isReply: !!isReply, flagged: !!flagged });
 
+        // Flag is only offered to the admin of the group the active topic
+        // belongs to — mirrors the server-side authorization that must also
+        // be enforced on the /posts/{id}/flag endpoint itself.
+        const canFlag = isGroupAdmin(activeBrowseGroupId);
+        const flagHtml = canFlag
+            ? `<a class="flag-link${flagged ? ' flagged' : ''}" onclick="flagPost(${msgIndex})">${flagged ? 'Flagged' : 'Flag'}</a>`
+            : '';
+ 
         return `
-            <div class="msg-group ${side}${isReply ? ' is-reply' : ''}">
+            <div class="msg-group ${side}${isReply ? ' is-reply' : ''}${flagged ? ' is-flagged' : ''}" id="${postId ? 'post-' + postId : ''}">
                 <div class="bubble">
                     <span class="bubble-author">${authorName}</span>
                     <p class="bubble-text">${content}</p>
@@ -883,11 +1053,51 @@ window.loadGroupMembers = loadGroupMembers;
                 <div class="msg-actions">
                     <a class="reply-link" onclick="focusComposerWithMention('${authorName.replace(/'/g, "\\'")}')">Reply</a>
                     <a class="forward-link" onclick="openForwardModal(${msgIndex})">Forward</a>
+                    ${flagHtml}
                     <span class="msg-time">${time}</span>
                 </div>
             </div>
         `;
     }
+    async function flagPost(msgIndex) {
+        const msg = currentTopicMessages[msgIndex];
+        if (!msg || !msg.postId) return;
+        if (!isGroupAdmin(activeBrowseGroupId)) return; // client-side guard only; server must enforce this too
+
+        const ok = window.confirm(msg.flagged ? 'Remove flag from this message?' : 'Flag this message for review?');
+        if (!ok) return;
+
+        const endpoint = msg.isReply ? `/replies/${msg.postId}/flag` : `/posts/${msg.postId}/flag`;
+        const response = await api(endpoint, {
+            method: 'POST',
+            body: { flagged: !msg.flagged }
+        });
+
+        if (response && response.error) {
+            alert(response.error);
+            return;
+        }
+
+        // Notify if flagging triggered a blacklist and ban
+        if (response && response.message) {
+            alert(response.message);
+        }
+
+        msg.flagged = !msg.flagged;
+
+        // Update the flag link and bubble highlight in place instead of
+        // re-rendering the whole thread.
+        const postEl = document.getElementById(`post-${msg.postId}`);
+        if (postEl) {
+            postEl.classList.toggle('is-flagged', msg.flagged);
+            const flagLink = postEl.querySelector('.flag-link');
+            if (flagLink) {
+                flagLink.textContent = msg.flagged ? 'Flagged' : 'Flag';
+                flagLink.classList.toggle('flagged', msg.flagged);
+            }
+        }
+    }
+    window.flagPost = flagPost;
 
     /* ---------- Post exclusion checklist ---------- */
     async function loadGroupMembersForExclusion() {
