@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Controllers\Api\Concerns\TracksParticipation;
 use App\Models\Post;
 use App\Models\Reply;
+use App\Models\User;
 use App\Services\NotificationService;
 use App\Events\MessageBroadcast;
 use Illuminate\Http\Request;
@@ -60,9 +61,25 @@ class ReplyController extends Controller
     }
 
     /** Content moderation: flag a reply as irrelevant/inappropriate. */
-    public function flag(Reply $reply)
+    public function flag(Request $request, Reply $reply)
     {
         $reply->update(['is_flagged' => true]);
+
+        $flagger = $request->user();
+        $topicTitle = $reply->post->topic->title ?? 'a topic';
+
+        // ADDED: mirrors PostController::flag() — every Administrator now
+        // gets notified when a reply is flagged, so it surfaces on the
+        // admin dashboard's Flagged Content list just like flagged posts.
+        User::role('Administrator')->get()->each(function (User $admin) use ($flagger, $reply, $topicTitle) {
+            $this->notifications->send(
+                $admin,
+                'Reply Flagged',
+                "{$flagger->full_name} flagged a reply in '{$topicTitle}' for moderation.",
+                'Reply',
+                $reply->reply_id
+            );
+        });
 
         return response()->json(['message' => 'Reply flagged for moderation.', 'reply' => $reply]);
     }

@@ -407,7 +407,6 @@
         const data = await api('/groups');
         const groups = (data && (data.data || data)) || [];
         myGroups = groups;
-
         renderGroupsBrowser();
 
         ['quizGroupId', 'criteriaGroupId'].forEach(id => {

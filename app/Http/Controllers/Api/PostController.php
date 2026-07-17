@@ -8,6 +8,7 @@ use App\Jobs\GenerateUserRecommendations;
 use App\Models\Post;
 use App\Models\PostExclusion;
 use App\Models\Topic;
+use App\Models\User;
 use App\Services\NotificationService;
 use App\Events\MessageBroadcast;
 use Illuminate\Http\Request;
@@ -97,9 +98,27 @@ class PostController extends Controller
     }
 
     /** Content moderation: flag a post as irrelevant/spam (SDD Table 31). */
-    public function flag(Post $post)
+    public function flag(Request $request, Post $post)
     {
         $post->update(['is_flagged' => true]);
+
+        $flagger = $request->user();
+        $topicTitle = $post->topic->title ?? 'a topic';
+
+        // ADDED: flagging previously updated the row silently — no one was
+        // ever told. Every Administrator now gets a notification so it
+        // actually surfaces (e.g. on the admin dashboard's Flagged Content
+        // list), matching the same NotificationService->send() pattern
+        // store() already uses for new-post notifications.
+        User::role('Administrator')->get()->each(function (User $admin) use ($flagger, $post, $topicTitle) {
+            $this->notifications->send(
+                $admin,
+                'Post Flagged',
+                "{$flagger->full_name} flagged a post in '{$topicTitle}' for moderation.",
+                'Post',
+                $post->post_id
+            );
+        });
 
         return response()->json(['message' => 'Post flagged for moderation.', 'post' => $post]);
     }
