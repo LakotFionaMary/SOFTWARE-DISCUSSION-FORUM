@@ -17,7 +17,7 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
 
-   >withBroadcasting(
+    ->withBroadcasting(
     __DIR__.'/../routes/channels.php',
      [
         'prefix' => 'api',
