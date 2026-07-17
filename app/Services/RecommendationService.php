@@ -20,8 +20,13 @@ class RecommendationService
 
     public function __construct()
     {
-        $this->baseUrl = config('services.ml.url', 'http://127.0.0.1:5001');
-        $this->apiKey = config('services.ml.key', '');
+        $this->baseUrl = config('services.ml.url', 'http://127.0.0.1:5001') ?? 'http://127.0.0.1:5001';
+        // config()'s default only applies when the key is missing entirely -
+        // if services.ml.key exists but resolves to null (e.g. ML_API_KEY is
+        // unset in .env), config() still returns null here, which can't be
+        // assigned to this non-nullable string property. The extra ?? ''
+        // guards against that without changing any other behavior.
+        $this->apiKey = config('services.ml.key', '') ?? '';
     }
 
     /**

@@ -184,7 +184,14 @@ console.log("TOPIC SCRIPT LOADED");
                     console.error("Payload structure mismatch! Received:", e);
                     return;
                 }
-               
+
+                // Selective communication: don't render this post for a user
+                // it was posted with an exclusion against.
+                if (Array.isArray(e.excluded_user_ids) && e.excluded_user_ids.includes(currentUserId)) {
+                    console.log("Post excluded for current user, skipping render.");
+                    return;
+                }
+
                 // 1. Identify if the message belongs to the current logged-in user
                 const isMine = e.reply.author_id === currentUserId;
                 const sideClass = isMine ? 'mine' : 'theirs';

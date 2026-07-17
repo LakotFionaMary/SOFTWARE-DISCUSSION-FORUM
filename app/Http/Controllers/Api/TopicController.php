@@ -49,10 +49,19 @@ class TopicController extends Controller
     }
 
     /** Topic-Focused View: only chats belonging to this topic, isolated from unrelated discussion. */
-    public function show(Topic $topic)
+    public function show(Request $request, Topic $topic)
     {
+        $userId = $request->user()->user_id;
+
         return response()->json(
-            $topic->load(['creator', 'posts.author', 'posts.replies.author'])
+            $topic->load([
+                'creator',
+                // Selective communication: hide posts that exclude the requesting user
+                // (mirrors PostController::index()).
+                'posts' => fn ($q) => $q->whereDoesntHave('exclusions', fn ($q2) => $q2->where('excluded_user_id', $userId)),
+                'posts.author',
+                'posts.replies.author',
+            ])
         );
     }
 

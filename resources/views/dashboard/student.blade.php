@@ -29,7 +29,7 @@
         display: flex; align-items: center; justify-content: space-between; gap: 10px;
         padding: 12px 4px; border-bottom: 1px solid var(--line); cursor: pointer;
     }
-    .group-item:last-child, .topic-item:last-child { border-bottom: none; }
+    .group-entry:last-child .group-item { border-bottom: none; }
     .group-item:hover, .topic-item:hover { background: #eef2f1; }
     .group-item .group-info { min-width: 0; }
     .group-item .group-info strong, .topic-item strong { display: block; font-size: 15px; }
@@ -39,6 +39,24 @@
         background: var(--accent); color: #fff; border: none; cursor: pointer;
     }
     .group-item .join-btn:hover { background: var(--accent-dark); }
+
+    /* ---------- Group members toggle ---------- */
+    .group-entry { border-bottom: 1px solid var(--line); }
+    .group-entry:last-child { border-bottom: none; }
+    .group-entry .group-item { border-bottom: none; }
+    .members-toggle-row { padding: 0 4px 10px; }
+    .members-toggle-row .members-toggle-link {
+        color: var(--accent); font-size: 12.5px; font-weight: 600; cursor: pointer;
+    }
+    .members-toggle-row .members-toggle-link:hover { text-decoration: underline; }
+    .member-names {
+        display: none; flex-wrap: wrap; gap: 6px; margin-top: 8px;
+    }
+    .member-names.open { display: flex; }
+    .member-chip {
+        background: #eef2f1; color: #374151; font-size: 12px; font-weight: 500;
+        padding: 4px 10px; border-radius: 12px;
+    }
  
     /* Chat thread + composer, reused from the standalone topic page so the
        inline preview here looks/feels the same. No fixed height/scrolling —
@@ -86,6 +104,28 @@
         width: 38px; height: 38px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; cursor: pointer;
     }
     .composer-send svg { width: 18px; height: 18px; }
+
+    /* ---------- Exclude-from-post checklist ---------- */
+    .exclusion-wrap { margin-top: 14px; }
+    .exclusion-wrap .exclusion-label { font-size: 13px; font-weight: 600; color: var(--slate); display: block; margin-bottom: 6px; }
+    #dashExclusionList {
+        border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px;
+        max-height: 140px; overflow-y: auto; background: #fff;
+        display: flex; flex-direction: column; gap: 2px;
+    }
+    #dashExclusionList label {
+        display: flex; align-items: center; justify-content: flex-start !important;
+        gap: 8px; font-size: 14px; cursor: pointer; padding: 6px 2px; width: 100%;
+    }
+    #dashExclusionList input[type="checkbox"] { flex-shrink: 0; margin: 0; width: 15px; height: 15px; }
+    #dashExclusionList .exclusion-name { flex: 1; text-align: left; white-space: normal; }
+
+    /* ---------- Icon-only download button ---------- */
+    .icon-btn {
+        display: inline-flex; align-items: center; justify-content: center;
+        width: 34px; height: 34px; padding: 0; border-radius: 8px;
+    }
+    .icon-btn svg { width: 17px; height: 17px; }
  
     /* ---------- Forward message modal ---------- */
     .modal-overlay {
@@ -249,16 +289,25 @@
 
     /* ---------- Live WebSockets Subscription (Laravel Echo) ---------- */
     window.currentSubscriptionId = null;
+    window._echoWaitAttempts = 0;
 
     window.subscribeToTopic = function (topicId) {
         if (!topicId) return;
 
-        // 1. Wait for Laravel Echo to finish loading if it's slow
+        // 1. Wait for Laravel Echo to finish loading if it's slow. Capped at
+        // 20 attempts (10s) so a genuinely missing/misconfigured Echo setup
+        // fails quietly instead of retrying - and logging a warning - forever.
         if (typeof window.Echo === 'undefined') {
+            window._echoWaitAttempts++;
+            if (window._echoWaitAttempts > 20) {
+                console.warn("Laravel Echo never loaded after 10s - giving up on live updates for this topic. Check your Echo/Reverb setup.");
+                return;
+            }
             console.warn("Laravel Echo is not loaded yet! Retrying in 500ms...");
             setTimeout(() => window.subscribeToTopic(topicId), 500);
             return;
         }
+        window._echoWaitAttempts = 0;
 
         // 2. Prevent duplicate subscriptions to the same topic
         if (window.currentSubscriptionId === topicId) {
@@ -305,6 +354,14 @@
                 }
 
                 const myId = window.CURRENT_USER ? window.CURRENT_USER.user_id : null;
+
+                // Selective communication: if the backend includes the list of
+                // excluded user ids on the broadcast payload, don't render the
+                // post for anyone in it. This only works once the backend
+                // sends this field on the event - see note in code review.
+                const excludedIds = (e.excluded_user_ids || e.reply?.excluded_user_ids || []).map(Number);
+                if (myId !== null && excludedIds.includes(Number(myId))) return;
+
                 const mine = e.reply.author_id === myId;
                 const side = mine ? 'mine' : 'theirs';
                 const authorName = e.reply.author ? (e.reply.author.full_name || e.reply.author.name) : 'User';
@@ -344,6 +401,7 @@
         } else if (browseView === 'posts') {
             el.innerHTML = postsViewHtml();
             loadBrowsePosts();
+            loadGroupMembersForExclusion();
         } else {
             el.innerHTML = groupsViewHtml();
         }
@@ -353,15 +411,21 @@
         const rows = myGroups.map(g => {
             const joined = g.is_member || g.is_group_admin;
             return `
-                <div class="group-item" data-group-id="${g.group_id}" onclick="openGroupTopics(${g.group_id}, '${escAttr(g.name)}')">
-                    <div class="group-info">
-                        <strong>${g.name}</strong>
-                        <div class="muted">${g.members_count ?? 0} members · ${g.topics_count ?? 0} topics</div>
+                <div class="group-entry" data-group-id="${g.group_id}">
+                    <div class="group-item" onclick="openGroupTopics(${g.group_id}, '${escAttr(g.name)}')">
+                        <div class="group-info">
+                            <strong>${g.name}</strong>
+                            <div class="muted">${g.members_count ?? 0} members · ${g.topics_count ?? 0} topics</div>
+                        </div>
+                        ${joined
+                            ? '<span class="badge role-student">Joined</span>'
+                            : `<button type="button" class="join-btn" onclick="joinGroupInline(event, ${g.group_id})">Join</button>`
+                        }
                     </div>
-                    ${joined
-                        ? '<span class="badge role-student">Joined</span>'
-                        : `<button type="button" class="join-btn" onclick="joinGroupInline(event, ${g.group_id})">Join</button>`
-                    }
+                    <div class="members-toggle-row">
+                        <a class="members-toggle-link" id="membersToggle-${g.group_id}" onclick="toggleGroupMembers(event, ${g.group_id})">Show members</a>
+                        <div class="member-names" id="membersNames-${g.group_id}"></div>
+                    </div>
                 </div>
             `;
         }).join('') || '<div class="empty-state">No groups exist yet.</div>';
@@ -402,9 +466,15 @@
             </a>
             <div style="display:flex; align-items:center; justify-content:space-between; margin: 12px 0 14px;">
                 <h3 style="margin:0;">${activeBrowseTopicTitle}</h3>
-                <button class="btn secondary" type="button" onclick="exportDashTopicPdf()">PDF</button>
+                <button class="btn secondary icon-btn" type="button" onclick="exportDashTopicPdf()" title="Download as PDF" aria-label="Download as PDF">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                </button>
             </div>
             <div class="chat-thread" id="dashPosts"><div class="muted">Loading messages…</div></div>
+            <div class="exclusion-wrap">
+                <span class="exclusion-label">Exclude these members from seeing your next post</span>
+                <div id="dashExclusionList">Loading members…</div>
+            </div>
             <form class="composer" id="dashComposerForm">
                 <textarea id="dashComposerInput" rows="1" placeholder="Type a message…" required
                     oninput="this.style.height='auto'; this.style.height=(this.scrollHeight)+'px';"></textarea>
@@ -541,35 +611,39 @@
         if (!activeBrowseTopicId) return;
         const container = document.getElementById('dashPosts');
         if (!container) return;
- 
-        const t = await api(`/topics/${activeBrowseTopicId}`);
-        if (!t || t.message) {
-            container.innerHTML = `<div class="muted">${(t && t.message) || 'This topic could not be loaded.'}</div>`;
+
+        // Use the exclusion-aware endpoint (PostController@index), which
+        // filters out posts excluded from this viewer, instead of the raw
+        // topic->posts relation (which does not apply that filter).
+        const data = await api(`/topics/${activeBrowseTopicId}/posts`);
+        if (!data) {
+            container.innerHTML = '<div class="muted">This topic could not be loaded.</div>';
             return;
         }
- 
+
         const myId = window.CURRENT_USER ? window.CURRENT_USER.user_id : null;
-        const posts = t.posts || [];
- 
-        // Reset the lookup table that Forward uses to find a message's full
-        // content by index, without stuffing raw/quoted text into onclick attrs.
+        // API returns newest-first (latest('posted_at')); reverse to
+        // chronological order so new messages render at the bottom, like
+        // a normal chat thread.
+        const posts = ((data && (data.data || data)) || []).slice().reverse();
+
         currentTopicMessages = [];
- 
+
         container.innerHTML = posts.map(p => {
             const mine = p.author_id === myId;
             const side = mine ? 'mine' : 'theirs';
             const authorName = p.author ? (p.author.full_name || p.author.name) : 'User';
- 
+
             const repliesHtml = (p.replies || []).map(r => {
                 const replyMine = r.author_id === myId;
                 const replySide = replyMine ? 'mine' : 'theirs';
                 const replyAuthorName = r.author ? (r.author.full_name || r.author.name) : 'User';
                 return renderMsgGroup(replySide, replyAuthorName, r.content, timeOnly(r.replied_at || r.created_at), true);
             }).join('');
- 
+
             return renderMsgGroup(side, authorName, p.content, timeOnly(p.posted_at || p.created_at), false) + repliesHtml;
         }).join('') || '<div class="muted">No messages yet in this topic — start the discussion below.</div>';
- 
+
         container.scrollTop = container.scrollHeight;
     }
  
@@ -604,11 +678,11 @@
         const myId = window.CURRENT_USER ? window.CURRENT_USER.user_id : null;
 
         listEl.innerHTML = members
-            .filter(m => m.user_id !== myId)
+            .filter(m => (m.user_id ?? m.id) !== myId)
             .map(m => `
                 <label>
-                    <input type="checkbox" value="${m.user_id}">
-                    ${m.full_name || m.name}
+                    <input type="checkbox" value="${m.user_id ?? m.id}">
+                    <span class="exclusion-name">${m.full_name || m.name}</span>
                 </label>
             `).join('') || '<div class="muted" style="font-size:13px;">No other members in this group.</div>';
     }
@@ -840,12 +914,26 @@
             e.preventDefault();
             if (!activeBrowseTopicId) return;
             const textarea = document.getElementById('dashComposerInput');
-            const excludeIds = Array.from(document.querySelectorAll('#dashExclusionList input[type="checkbox"]:checked'))
-                .map(cb => Number(cb.value));
-            await api(`/topics/${activeBrowseTopicId}/posts`, { method: 'POST', body: { content: textarea.value, exclude_user_ids: excludeIds } });
-           // await api(`/topics/${activeBrowseTopicId}/posts`, { method: 'POST', body: { content: textarea.value, exclude_user_ids: [] } });
+            const excludeCheckboxes = Array.from(document.querySelectorAll('#dashExclusionList input[type="checkbox"]:checked'));
+            const excludeIds = excludeCheckboxes
+                .map(cb => Number(cb.value))
+                .filter(id => !Number.isNaN(id));
+
+            const res = await api(`/topics/${activeBrowseTopicId}/posts`, {
+                method: 'POST',
+                body: { content: textarea.value, exclude_user_ids: excludeIds }
+            });
+
+            if (!res || res.errors || res.error) {
+                alert('Your message could not be posted. Please try again.');
+                return;
+            }
+
             textarea.value = '';
             textarea.style.height = 'auto';
+            // Uncheck exclusions after a successful send so the next message
+            // doesn't silently keep excluding the same members.
+            excludeCheckboxes.forEach(cb => { cb.checked = false; });
             loadBrowsePosts();
         }
     });
@@ -871,7 +959,10 @@
     }
  
     let myAttemptsByQuiz = {};
- 
+    // Quiz ids we've already auto-launched a popup for this session, so we
+    // don't keep re-opening the same window on every refresh.
+    const autoOpenedQuizIds = new Set();
+
     async function loadStudentQuizzes() {
         const container = document.getElementById('studentQuizzes');
         const attempts = await api('/me/quiz-attempts') || [];
@@ -879,6 +970,30 @@
         attempts.forEach(a => { myAttemptsByQuiz[a.quiz_id] = a; });
  
         const quizzes = await api('/me/quizzes') || [];
+
+        // Auto-open: if a published quiz's configured window has started
+        // (and not yet ended) and the student hasn't submitted an attempt
+        // or already been auto-launched into it, pop the quiz open on its
+        // own so they don't have to notice and click "Take quiz" in time.
+        const now = new Date();
+        quizzes.forEach(q => {
+            const attempt = myAttemptsByQuiz[q.quiz_id];
+            if (attempt && attempt.submitted_at) return;
+            if (q.status !== 'Open') return;
+            if (autoOpenedQuizIds.has(q.quiz_id)) return;
+            if (!q.opens_at || !q.ends_at) return;
+
+            const opensAt = new Date(q.opens_at);
+            const endsAt = new Date(q.ends_at);
+            if (now >= opensAt && now < endsAt) {
+                autoOpenedQuizIds.add(q.quiz_id);
+                window.open(
+                    `/quizzes/${q.quiz_id}`,
+                    `quiz-${q.quiz_id}`,
+                    'width=900,height=700'
+                );
+            }
+        });
  
         container.innerHTML = quizzes.map(q => {
             const groupName = q.group?.name ?? 'Unknown group';
@@ -924,6 +1039,15 @@
         loadStudentQuizzes();
         loadRecommendations();
         loadNotifications();
+
+        // Auto-refresh: keep quizzes/notifications current in the
+        // background so a quiz whose configured time arrives gets picked
+        // up (and auto-launched) even while the student is elsewhere on
+        // the dashboard, without them having to manually reload the page.
+        setInterval(() => {
+            loadStudentQuizzes();
+            loadNotifications();
+        }, 20000);
     }
  
     init();

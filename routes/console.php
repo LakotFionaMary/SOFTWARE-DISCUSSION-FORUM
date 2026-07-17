@@ -21,4 +21,5 @@ Schedule::call(function () {
 })->daily()->name('inactivity-watchdog');
 
 
+Schedule::command('quizzes:open-scheduled')->everyMinute();
 Schedule::command('quizzes:close-expired')->everyMinute();

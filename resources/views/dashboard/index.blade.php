@@ -16,9 +16,7 @@
         window.location.href = '/';
     }
  
-    // Single entry point after login: figure out the user's highest role
-    // and send them straight to the dashboard built for it, so nobody has
-    // to hunt through one giant page for the controls that apply to them.
+    
     (async () => {
         await loadCurrentUser();
  
@@ -26,9 +24,7 @@
             : window.CURRENT_ROLE === 'lecturer' ? '/dashboard/lecturer'
             : '/dashboard/student';
  
-        // Preserve ?panel=... (and anything else) so a sidebar link like
-        // /dashboard?panel=panel-quizzes still lands on the Quizzes panel
-        // after bouncing to the role-specific dashboard URL.
+   
         window.location.replace(destination + window.location.search);
  
         // Safety net in case replace() is blocked by the browser for any reason.

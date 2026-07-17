@@ -111,6 +111,25 @@ class QuizController extends Controller
                 ->whereIn('status', ['Open', 'Closed'])
                 ->latest()
                 ->get();
+
+            // Auto-open/close support: expose the quiz's real start/end
+            // clock moments (mirrors QuizAttemptController::start()) so the
+            // dashboard can decide when to auto-launch the quiz window
+            // without re-deriving the date/time math on the client.
+            $quizzes->each(function (Quiz $quiz) {
+                $config = $quiz->configuration;
+                if (! $config) {
+                    return;
+                }
+
+                $opensAt = \Illuminate\Support\Carbon::parse(
+                    $config->scheduled_date->toDateString() . ' ' . $config->start_time
+                );
+                $endsAt = $opensAt->copy()->addMinutes((int) $config->duration_minutes);
+
+                $quiz->opens_at = $opensAt->toIso8601String();
+                $quiz->ends_at = $endsAt->toIso8601String();
+            });
         }
 
         return response()->json($quizzes);

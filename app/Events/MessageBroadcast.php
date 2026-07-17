@@ -43,4 +43,24 @@ class MessageBroadcast implements ShouldBroadcast
     {
         return 'MessageBroadcast';
     }
+
+    /**
+     * Selective communication: the topic channel is shared by every group
+     * member, but a post can exclude specific users. Since Presence
+     * channels can't drop individual subscribers, include the excluded
+     * user ids so the frontend can skip rendering for them (see
+     * post_exclusions / PostController::index()).
+     */
+    public function broadcastWith(): array
+    {
+        $excludedUserIds = $this->reply instanceof \App\Models\Post
+            ? $this->reply->exclusions()->pluck('excluded_user_id')->all()
+            : [];
+
+        return [
+            'reply' => $this->reply,
+            'topicId' => $this->topicId,
+            'excluded_user_ids' => $excludedUserIds,
+        ];
+    }
 }
