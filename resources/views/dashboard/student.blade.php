@@ -433,11 +433,24 @@
         console.log("No active topic selected yet. Waiting for user interaction.");
     }
 });
- 
-    function escAttr(str) {
+ function escAttr(str) {
         return (str || '').replace(/'/g, "\\'");
     }
 
+    function isGroupAdmin(groupId) {
+        if (!groupId) return false;
+        const g = myGroups.find(x => x.group_id === groupId);
+        return !!(g && g.is_group_admin);
+    }
+    window.isGroupAdmin = isGroupAdmin;
+
+    async function loadGroups() {
+        const data = await api('/groups');
+        const groups = (data && (data.data || data)) || [];
+        myGroups = groups;
+        renderGroupAdminPanel(groups);
+        renderGroupsBrowser();
+    }
     async function loadGroups() {
         const data = await api('/groups');
         const groups = (data && (data.data || data)) || [];
@@ -474,15 +487,16 @@
                 ? `openGroupTopics(${g.group_id}, '${escAttr(g.name)}')`
                 : `showNotMemberNotice(${g.group_id})`);
             return `
-                <div class="group-item" data-group-id="${g.group_id}" onclick="${clickHandler}">
-                <div class="group-info">
-                    <strong>${g.name}${isBanned ? ' <span class="badge" style="background:#dc2626; color:#fff; margin-left:6px; font-size:11px;">Banned</span>' : ''}</strong>
-                    <div class="muted">${g.members_count ?? 0} members · ${g.topics_count ?? 0} topics</div>
-                    ${!isBanned && !joined ? `
-                        <div class="muted" id="notMemberNotice-${g.group_id}" style="display:none; color:#b45309; font-weight:600; margin-top:2px;">
-                            You're not a member of this group yet — join to view topics.
-                        </div>
-                    ` : ''}
+                <div class="group-entry">
+                    <div class="group-item" data-group-id="${g.group_id}" onclick="${clickHandler}">
+                        <div class="group-info">
+                            <strong>${g.name}${isBanned ? ' <span class="badge" style="background:#dc2626; color:#fff; margin-left:6px; font-size:11px;">Banned</span>' : ''}</strong>
+                            <div class="muted">${g.members_count ?? 0} members · ${g.topics_count ?? 0} topics</div>
+                            ${!isBanned && !joined ? `
+                                <div class="muted" id="notMemberNotice-${g.group_id}" style="display:none; color:#b45309; font-weight:600; margin-top:2px;">
+                                    You're not a member of this group yet — join to view topics.
+                                </div>
+                            ` : ''}
                         </div>
                         ${joined
                             ? '<span class="badge role-student">Joined</span>'
@@ -494,11 +508,6 @@
                         <div class="member-names" id="membersNames-${g.group_id}"></div>
                     </div>
                 </div>
-                ${joined
-                    ? '<span class="badge role-student">Joined</span>'
-                    : `<button type="button" class="join-btn" onclick="joinGroupInline(event, ${g.group_id})">Join</button>`
-                }
-            </div>
         `;
     }).join('') || '<div class="empty-state">No groups exist yet.</div>';
 
@@ -800,13 +809,6 @@ window.toggleGroupMembersExpanded = toggleGroupMembersExpanded;
             alert("You are blacklisted and banned from accessing this group.");
             return;
         }
-        //////////////added---------------
-        const group = myGroups.find(g => g.group_id === groupId);
-    const joined = group && (group.is_member || group.is_group_admin);
-    if (!joined) {
-        alert('Join this group first to view its topics.');
-        return;
-    }
         activeBrowseGroupId = groupId;
         activeBrowseGroupName = groupName;
         activeBrowseTopicId = null;
@@ -1383,8 +1385,6 @@ window.showNotMemberNotice = showNotMemberNotice;
                 alert('Your message could not be posted. Please try again.');
                 return;
             }
-         }
-   });
 
             textarea.value = '';
             textarea.style.height = 'auto';
@@ -1569,3 +1569,4 @@ window.showNotMemberNotice = showNotMemberNotice;
     init();
 </script>
 @endsection
+
