@@ -14,12 +14,31 @@ use Illuminate\Http\Request;
  */
 class GroupController extends Controller
 {
-    public function index(Request $request)
-    {
-        return response()->json(
-            Group::withCount(['members', 'topics'])->paginate(20)
-        );
-    }
+   public function index(Request $request)
+{
+    $userId = $request->user()->user_id;
+
+    $myMembershipGroupIds = \App\Models\Membership::where('user_id', $userId)
+        ->pluck('group_id')
+        ->flip();
+
+    $myAdminGroupIds = \App\Models\GroupAdmin::where('user_id', $userId)
+        ->where('is_active', true)
+        ->pluck('group_id')
+        ->flip();
+
+    $groups = Group::withCount(['members', 'topics'])->paginate(20);
+
+    $groups->getCollection()->transform(function ($group) use ($request, $myMembershipGroupIds, $myAdminGroupIds) {
+        $group->is_member = $myMembershipGroupIds->has($group->group_id);
+        $group->is_group_admin = $myAdminGroupIds->has($group->group_id);
+        $group->is_banned = $request->user()->isBlacklistedIn($group->group_id);
+
+        return $group;
+    });
+
+    return response()->json($groups);
+}
 
     public function store(Request $request)
     {
