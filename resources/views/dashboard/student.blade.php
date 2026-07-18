@@ -156,6 +156,11 @@
        Scoped to <=640px only, so desktop/tablet layout above is 100%
        untouched. Mirrors the phone mockup: stacked headers with
        full-width buttons, wider chat bubbles, tighter chrome. */
+    
+    .topics-head {display: flex;   align-items: center;    justify-content: space-between;
+       flex-wrap: wrap;    gap: 12px;    margin-bottom: 14px;}
+      .topics-head-actions {
+       display: flex;    gap: 8px;    flex-shrink: 0;}
     @media (max-width: 640px) {
         .groups-header { flex-direction: column; align-items: stretch; gap: 10px; }
         .groups-header .btn { width: 100%; }
