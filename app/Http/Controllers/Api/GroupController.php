@@ -34,6 +34,15 @@ class GroupController extends Controller
         $group->is_group_admin = $myAdminGroupIds->has($group->group_id);
         $group->is_banned = $request->user()->isBlacklistedIn($group->group_id);
 
+        // ADDED: the lecturer dashboard's Groups panel reads is_owner (for
+        // the "Owner" badge) and can_view_group_statistics (to show the
+        // Statistics/Gradebook links) — these mirror
+        // StatisticsController::authorizeGroupAccess()'s rule (owner OR
+        // active group admin) but were never actually included in this
+        // response, so those badges/links silently never appeared.
+        $group->is_owner = $group->admin_id == $request->user()->user_id;
+        $group->can_view_group_statistics = $group->is_owner || $myAdminGroupIds->has($group->group_id);
+
         return $group;
     });
 

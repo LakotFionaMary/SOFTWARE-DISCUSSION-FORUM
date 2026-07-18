@@ -93,6 +93,10 @@
     .msg-actions .reply-link:hover,
     .msg-actions .forward-link:hover { text-decoration: underline; }
     .msg-actions .msg-time { color: var(--slate); }
+    /* Flag action (group admins only) */
+    .msg-actions .flag-link { color: #dc2626; cursor: pointer; }
+    .msg-actions .flag-link:hover { text-decoration: underline; }
+    .msg-actions .flag-link.flagged { font-weight: 700; }
 
     .composer {
         display: flex; align-items: flex-end; gap: 8px; margin-top: 14px;
@@ -160,7 +164,7 @@
     .topics-head {display: flex;   align-items: center;    justify-content: space-between;
        flex-wrap: wrap;    gap: 12px;    margin-bottom: 14px;}
       .topics-head-actions {
-       display: flex;    gap: 8px;    flex-shrink: 0;}
+       display: flex;    gap: 8px;    flex-shrink: 0;    flex-wrap: wrap;    align-items: center;}
     @media (max-width: 640px) {
         .groups-header { flex-direction: column; align-items: stretch; gap: 10px; }
         .groups-header .btn { width: 100%; }
@@ -190,13 +194,13 @@
              actually decides whether the sidebar item/panel exist (not just CSS). -->
         <div class="dash-panel" id="panel-group-admin">
             <div class="section-title"><h2 style="margin:0;">Group Admin</h2></div>
-            <p class="muted">Groups you administer. As a group admin you can view full group statistics, the same view a lecturer sees for their own groups.</p>
+            <p class="muted">Groups you administer. As a group admin you can view full group statistics, the same view a lecturer sees for their own groups, and flag posts for review.</p>
             <div id="groupAdminList"></div>
         </div>
 
         <!-- ================= MY GROUPS ================= -->
         <div class="dash-panel" id="panel-groups">
-            <div class="section-title"><h2 style="margin:0;">Groups</h2></div>
+            
 
             <!-- Single drill-down view: groupsBrowserContent's innerHTML is
                  fully swapped by JS between the groups list, a group's
@@ -313,7 +317,7 @@
     let activeBrowseGroupName = '';
     let activeBrowseTopicId = null;
     let activeBrowseTopicTitle = '';
-    let currentTopicMessages = []; // index -> {author, content}, used by the Forward modal
+    let currentTopicMessages = []; // index -> {author, content, postId, isReply, flagged}, used by Forward + Flag
 
      //// added------------------
     let groupMembersExpanded = false;
@@ -409,8 +413,11 @@
                 const authorName = e.reply.author ? (e.reply.author.full_name || e.reply.author.name) : 'User';
                 const timeStr = timeOnly(e.reply.posted_at || e.reply.created_at);
 
-                // Build the post HTML markup matching your structure exactly
-                const newPostHtml = renderMsgGroup(side, authorName, e.reply.content, timeStr, false);
+                // Build the post HTML markup matching your structure exactly.
+                // Pass through the post/reply id + moderation flag so live
+                // posts get the same Flag control and highlight as posts
+                // loaded from the initial fetch.
+                const newPostHtml = renderMsgGroup(side, authorName, e.reply.content, timeStr, false, e.reply.post_id ?? e.reply.reply_id, e.reply.is_flagged);
 
                 // Append the live message to the chat view container
                 container.insertAdjacentHTML('beforeend', newPostHtml);
@@ -437,13 +444,19 @@
         return (str || '').replace(/'/g, "\\'");
     }
 
+    // Group-admin check: is the current user the admin of the given group?
+    // Used to gate both the inline "View statistics" shortcut and the
+    // "Flag" action on posts/replies within that group's topics. Matches
+    // admin_id the same way renderGroupAdminPanel() does below, rather than
+    // relying on a separate (and unreliable) is_group_admin flag.
     function isGroupAdmin(groupId) {
-        if (!groupId) return false;
+        if (!groupId || !window.CURRENT_USER) return false;
         const g = myGroups.find(x => x.group_id === groupId);
-        return !!(g && g.is_group_admin);
+        return !!(g && g.admin_id === window.CURRENT_USER.user_id);
     }
     window.isGroupAdmin = isGroupAdmin;
 
+   
     async function loadGroups() {
         const data = await api('/groups');
         const groups = (data && (data.data || data)) || [];
@@ -451,13 +464,7 @@
         renderGroupAdminPanel(groups);
         renderGroupsBrowser();
     }
-    async function loadGroups() {
-        const data = await api('/groups');
-        const groups = (data && (data.data || data)) || [];
-        myGroups = groups;
-        renderGroupAdminPanel(groups);
-        renderGroupsBrowser();
-    }
+  
 
     // Swaps the ONE content div's innerHTML based on browseView, instead of
     // keeping separate group/topic/post divs all in the DOM at once.
@@ -593,9 +600,12 @@ function closeCreateGroupModalOnOuterClick(event) {
     function topicsViewHtml() {
         // Group admins get a quick shortcut straight to their group statistics
         // page without having to leave the drill-down view (the full stats
-        // link still also lives in the "Group Admin" sidebar panel).
+        // link still also lives in the "Group Admin" sidebar panel). It now
+        // lives inline with the Members / New Topic actions (last in the
+        // row) instead of a separate floated line, and uses the same
+        // "btn secondary" sizing as the other action buttons.
         const statsShortcut = isGroupAdmin(activeBrowseGroupId)
-            ? `<a class="btn secondary stats-shortcut" style="float:right;" href="/groups/${activeBrowseGroupId}/statistics">View statistics</a>`
+            ? `<a class="btn secondary" href="/groups/${activeBrowseGroupId}/statistics">View statistics</a>`
             : '';
             /* removed back to groups and added create topic, searching , filtering */
     return `
@@ -611,6 +621,7 @@ function closeCreateGroupModalOnOuterClick(event) {
                     Members
                 </button>
                 <button class="btn" type="button" onclick="openCreateTopicModal()">+ New Topic</button>
+                ${statsShortcut}
             </div>
         </div>
 
@@ -1023,8 +1034,9 @@ window.showNotMemberNotice = showNotMemberNotice;
         const myId = window.CURRENT_USER ? window.CURRENT_USER.user_id : null;
         const posts = t.posts || [];
 
-        // Reset the lookup table that Forward uses to find a message's full
-        // content by index, without stuffing raw/quoted text into onclick attrs.
+        // Reset the lookup table that Forward/Flag use to find a message's
+        // full content + id by index, without stuffing raw/quoted text into
+        // onclick attrs.
         currentTopicMessages = [];
 
         container.innerHTML = posts.map(p => {
@@ -1036,17 +1048,20 @@ window.showNotMemberNotice = showNotMemberNotice;
                 const replyMine = r.author_id === myId;
                 const replySide = replyMine ? 'mine' : 'theirs';
                 const replyAuthorName = r.author ? (r.author.full_name || r.author.name) : 'User';
-                return renderMsgGroup(replySide, replyAuthorName, r.content, timeOnly(r.replied_at || r.created_at), true);
+                return renderMsgGroup(replySide, replyAuthorName, r.content, timeOnly(r.replied_at || r.created_at), true, r.reply_id ?? r.post_id, r.is_flagged);
             }).join('');
 
-            return renderMsgGroup(side, authorName, p.content, timeOnly(p.posted_at || p.created_at), false) + repliesHtml;
+            return renderMsgGroup(side, authorName, p.content, timeOnly(p.posted_at || p.created_at), false, p.post_id, p.is_flagged) + repliesHtml;
         }).join('') || '<div class="muted">No messages yet in this topic — start the discussion below.</div>';
 
         container.scrollTop = container.scrollHeight;
     }
 
-    // One bubble + its Reply/Forward/timestamp row. `isReply` just adds the
-    // connecting-line modifier class — no extra wrapper div needed.
+    // One bubble + its Reply/Forward/Flag/timestamp row. `isReply` adds the
+    // connecting-line modifier class AND tells flagPost() which endpoint to
+    // call. `postId` is the post/reply's database id (used by Forward's
+    // share endpoint and by Flag). `flagged` reflects the post's current
+    // moderation state as returned by the API.
    function renderMsgGroup(side, authorName, content, time, isReply, postId, flagged) {
         const msgIndex = currentTopicMessages.length;
         currentTopicMessages.push({ author: authorName, content, postId, isReply: !!isReply, flagged: !!flagged });

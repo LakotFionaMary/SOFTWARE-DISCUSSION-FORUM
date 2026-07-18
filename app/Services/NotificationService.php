@@ -30,7 +30,23 @@ class NotificationService
         // Push to the user's private channel for online clients. Offline
         // clients pick this up later via the Sync module (SDD 5.4) or by
         // polling the notifications index endpoint.
-        broadcast(new \App\Events\NotificationBroadcast($notification))->toOthers();
+        //
+        // FIXED: this call previously had no error handling, unlike every
+        // other broadcast() call in the codebase (see
+        // PostController::store() / ReplyController::store()). The
+        // notification row above is already safely persisted by this point
+        // regardless — a broadcasting failure (invalid Pusher/Reverb
+        // credentials, the socket server being offline, etc.) must not take
+        // the whole request down. This was surfacing as a 500 on
+        // /posts/{id}/flag and /replies/{id}/flag because those endpoints
+        // call send() once per Administrator, so any broadcast failure
+        // aborted the whole flag action even though the flag itself and its
+        // notification rows had already saved.
+        try {
+            broadcast(new \App\Events\NotificationBroadcast($notification))->toOthers();
+        } catch (\Throwable $e) {
+            report($e);
+        }
 
         return $notification;
     }

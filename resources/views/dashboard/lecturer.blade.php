@@ -10,6 +10,11 @@
     .back-link { display: inline-block; color: var(--accent); font-weight: 600; cursor: pointer; }
     .back-link:hover { text-decoration: underline; }
 
+    /* ---------- Groups panel header (mirrors the student dashboard) ---------- */
+    .groups-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+    .groups-header h2 { margin: 0; }
+    .groups-list { display: flex; flex-direction: column; }
+
     .group-item, .topic-item {
         display: flex; align-items: center; justify-content: space-between; gap: 10px;
         padding: 12px 4px; cursor: pointer;
@@ -41,6 +46,20 @@
         background: #eef2f1; border-radius: 12px; padding: 3px 10px; font-size: 12.5px;
     }
 
+    /* ---------- Create-group modal (mirrors the student dashboard) ---------- */
+    .create-group-modal-overlay {
+        position: fixed; inset: 0; background: rgba(15, 23, 20, 0.45);
+        display: none; align-items: center; justify-content: center; z-index: 1000; padding: 16px;
+    }
+    .create-group-modal-overlay.open { display: flex; }
+    .create-group-modal-box {
+        background: #fff; border-radius: var(--radius); padding: 20px;
+        width: 100%; max-width: 420px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); position: relative;
+    }
+    .create-group-modal-box .close-modal-btn {
+        position: absolute; top: 12px; right: 16px; font-size: 22px; cursor: pointer; color: #666; line-height: 1;
+    }
+
     /* Chat thread + composer, reused from the standalone topic page so the
        inline preview here looks/feels the same. No fixed height/scrolling —
        it simply grows with the conversation. */
@@ -55,6 +74,9 @@
     /* Reply thread: a connecting guide line + indent applied straight to the
        message itself (one modifier class) instead of an extra wrapper div. */
     .msg-group.is-reply { margin-left: 26px; max-width: calc(78% - 26px); padding-left: 14px; border-left: 2px solid var(--line); }
+
+    /* Flagged post highlight */
+    .msg-group.is-flagged .bubble { outline: 2px solid #dc2626; outline-offset: 2px; }
 
     .bubble {
         padding: 8px 12px; border-radius: 12px;
@@ -73,6 +95,10 @@
     .msg-actions .reply-link:hover,
     .msg-actions .forward-link:hover { text-decoration: underline; }
     .msg-actions .msg-time { color: var(--slate); }
+    /* Flag action (lecturers/group admins only) */
+    .msg-actions .flag-link { color: #dc2626; cursor: pointer; }
+    .msg-actions .flag-link:hover { text-decoration: underline; }
+    .msg-actions .flag-link.flagged { font-weight: 700; }
 
     .composer {
         display: flex; align-items: flex-end; gap: 8px; margin-top: 14px;
@@ -291,6 +317,28 @@
         </div>
     </div>
 </div>
+
+<!-- ================= Create Group modal (mirrors the student dashboard) ================= -->
+<div class="create-group-modal-overlay" id="createGroupModalOverlay" onclick="closeCreateGroupModalOnOuterClick(event)">
+    <div class="create-group-modal-box" onclick="event.stopPropagation();">
+        <span class="close-modal-btn" onclick="closeCreateGroupModal()">&times;</span>
+        <h3 style="margin-top:0; margin-bottom:16px;">Create a new group</h3>
+        <form id="createGroupForm">
+            <div style="margin-bottom: 12px;">
+                <label style="display:block; margin-bottom:6px; font-weight:600; font-size:14px;">Group Name</label>
+                <input type="text" id="groupName" placeholder="Group name (e.g. CS301 Databases)" required style="width:100%; padding:8px; box-sizing:border-box;">
+            </div>
+            <div style="margin-bottom: 16px;">
+                <label style="display:block; margin-bottom:6px; font-weight:600; font-size:14px;">Description</label>
+                <textarea id="groupDescription" placeholder="What is this group for?" rows="3" style="width:100%; padding:8px; box-sizing:border-box; resize:vertical;"></textarea>
+            </div>
+            <div style="display:flex; justify-content:flex-end; gap:8px;">
+                <button type="button" class="btn btn-secondary" onclick="closeCreateGroupModal()" style="padding: 8px 16px;">Cancel</button>
+                <button type="submit" class="btn" style="padding: 8px 16px;">Create group</button>
+            </div>
+        </form>
+    </div>
+</div>
 @endsection
  
 @section('scripts')
@@ -305,7 +353,7 @@
     let activeBrowseGroupName = '';
     let activeBrowseTopicId = null;
     let activeBrowseTopicTitle = '';
-    let currentTopicMessages = []; // index -> {author, content}, used by the Forward modal
+    let currentTopicMessages = []; // index -> {author, content, postId, isReply, flagged}, used by Forward + Flag
 
     function escAttr(str) {
         return (str || '').replace(/'/g, "\\'");
@@ -315,6 +363,24 @@
         if (!dt) return '';
         return new Date(dt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     }
+
+    // MODIFIED: A lecturer may flag posts/replies in ANY group they belong
+    // to — owner, active admin, or plain member. This used to be gated on
+    // g.can_view_group_statistics (owner/admin only); flagging is a
+    // moderation action every lecturer in the group should have, so the
+    // check is now simply "is this a group I'm in at all".
+    //
+    // IMPORTANT: this is a client-side UI guard only. The real authorization
+    // must still live server-side on the /posts/{id}/flag and
+    // /replies/{id}/flag endpoints — verify there that the requesting user
+    // has a lecturer membership row for the group that owns the post/reply,
+    // otherwise a lecturer could flag posts in groups they don't belong to
+    // at all via a direct API call.
+    function canFlagInGroup(groupId) {
+        const g = myGroups.find(x => x.group_id === groupId);
+        return !!g;
+    }
+    window.canFlagInGroup = canFlagInGroup;
 
     /* ---------- Live WebSockets Subscription (Laravel Echo) ---------- */
     window.currentSubscriptionId = null;
@@ -357,15 +423,6 @@
 
                 if (activeBrowseTopicId !== e.topicId) return;
 
-                const myId = window.CURRENT_USER ? window.CURRENT_USER.user_id : null;
-
-                // Selective communication: don't render this post if it
-                // was posted with an exclusion against the current user.
-                if (Array.isArray(e.excluded_user_ids) && e.excluded_user_ids.includes(myId)) {
-                    console.log("Post excluded for current user, skipping render.");
-                    return;
-                }
-
                 const container = document.getElementById('dashPosts');
                 if (!container) return;
 
@@ -374,12 +431,13 @@
                     container.innerHTML = '';
                 }
 
+                const myId = window.CURRENT_USER ? window.CURRENT_USER.user_id : null;
                 const mine = e.reply.author_id === myId;
                 const side = mine ? 'mine' : 'theirs';
                 const authorName = e.reply.author ? (e.reply.author.full_name || e.reply.author.name) : 'User';
                 const timeStr = timeOnly(e.reply.posted_at || e.reply.created_at);
 
-                const newPostHtml = renderMsgGroup(side, authorName, e.reply.content, timeStr, false);
+                const newPostHtml = renderMsgGroup(side, authorName, e.reply.content, timeStr, false, e.reply.post_id ?? e.reply.reply_id, e.reply.is_flagged);
 
                 container.insertAdjacentHTML('beforeend', newPostHtml);
                 container.scrollTop = container.scrollHeight;
@@ -407,6 +465,7 @@
         const data = await api('/groups');
         const groups = (data && (data.data || data)) || [];
         myGroups = groups;
+
         renderGroupsBrowser();
 
         ['quizGroupId', 'criteriaGroupId'].forEach(id => {
@@ -438,39 +497,63 @@
         }
     }
 
+    // MODIFIED: layout now mirrors the student dashboard's Groups panel —
+    // a "Groups" header with a "+ Create Group" button that opens a modal,
+    // instead of an inline create-group card stacked under the list.
     function groupsViewHtml() {
-        const rows = myGroups.map(g => `
-            <div class="group-card-wrap" data-group-id="${g.group_id}">
-                <div class="group-item" onclick="openGroupTopics(${g.group_id}, '${escAttr(g.name)}')">
-                    <div class="group-info">
-                        <strong>${g.name}${g.is_owner ? ' <span class="badge role-lecturer" style="margin-left:6px; font-size:11px;">Owner</span>' : ''}</strong>
-                        <div class="muted">${g.description ?? ''} · ${g.members_count ?? 0} members · ${g.topics_count ?? 0} topics</div>
-                    </div>
-                    ${g.can_view_group_statistics ? `
-                        <div class="group-actions" onclick="event.stopPropagation();">
-                            <a class="btn btn-secondary" href="/groups/${g.group_id}/statistics" style="padding: 4px 10px; font-size: 12px;">Statistics</a>
-                            <a class="btn btn-secondary" href="/groups/${g.group_id}/gradebook" style="padding: 4px 10px; font-size: 12px;">Gradebook</a>
+        const rows = myGroups.map(g => {
+            const isBanned = g.is_banned || g.banned;
+            return `
+                <div class="group-card-wrap" data-group-id="${g.group_id}">
+                    <div class="group-item" onclick="${isBanned ? `alert('You are blacklisted/banned from this group.')` : `openGroupTopics(${g.group_id}, '${escAttr(g.name)}')`}">
+                        <div class="group-info">
+                            <strong>${g.name}${g.is_owner ? ' <span class="badge role-lecturer" style="margin-left:6px; font-size:11px;">Owner</span>' : ''}${isBanned ? ' <span class="badge" style="background:#dc2626; color:#fff; margin-left:6px; font-size:11px;">Banned</span>' : ''}</strong>
+                            <div class="muted">${g.description ?? ''} · ${g.members_count ?? 0} members · ${g.topics_count ?? 0} topics</div>
                         </div>
-                    ` : ''}
+                        ${g.can_view_group_statistics ? `
+                            <div class="group-actions" onclick="event.stopPropagation();">
+                                <a class="btn btn-secondary" href="/groups/${g.group_id}/statistics" style="padding: 4px 10px; font-size: 12px;">Statistics</a>
+                                <a class="btn btn-secondary" href="/groups/${g.group_id}/gradebook" style="padding: 4px 10px; font-size: 12px;">Gradebook</a>
+                            </div>
+                        ` : ''}
+                    </div>
+                    <a class="members-toggle" id="membersToggle-${g.group_id}" onclick="toggleGroupMembers(event, ${g.group_id})">Show members</a>
+                    <div class="members-names" id="membersNames-${g.group_id}"></div>
                 </div>
-                <a class="members-toggle" id="membersToggle-${g.group_id}" onclick="toggleGroupMembers(event, ${g.group_id})">Show members</a>
-                <div class="members-names" id="membersNames-${g.group_id}"></div>
-            </div>
-        `).join('') || '<div class="empty-state">You are not in any groups yet. Create one below.</div>';
+            `;
+        }).join('') || '<div class="empty-state">You are not in any groups yet. Create one below.</div>';
 
-        const createGroupCard = `
-            <div class="card" style="border-left: 4px solid #4f46e5; margin-top: 12px;">
-                <h3>Create a new group</h3>
-                <form id="createGroupForm">
-                    <input type="text" id="groupName" placeholder="Group name (e.g. CS301 Databases)" required>
-                    <textarea id="groupDescription" placeholder="What is this group for?" rows="2"></textarea>
-                    <button class="btn" type="submit">Create group</button>
-                </form>
+        return `
+            <div class="groups-view-container">
+                <div class="groups-header">
+                    <h2>Groups</h2>
+                    <button class="btn" type="button" onclick="openCreateGroupModal()">+ Create Group</button>
+                </div>
+                <div class="groups-list">${rows}</div>
             </div>
         `;
-
-        return rows + createGroupCard;
     }
+
+    function openCreateGroupModal() {
+        const modal = document.getElementById('createGroupModalOverlay');
+        if (modal) modal.classList.add('open');
+    }
+    window.openCreateGroupModal = openCreateGroupModal;
+
+    function closeCreateGroupModal() {
+        const modal = document.getElementById('createGroupModalOverlay');
+        const form = document.getElementById('createGroupForm');
+        if (modal) modal.classList.remove('open');
+        if (form) form.reset();
+    }
+    window.closeCreateGroupModal = closeCreateGroupModal;
+
+    function closeCreateGroupModalOnOuterClick(event) {
+        if (event.target && event.target.id === 'createGroupModalOverlay') {
+            closeCreateGroupModal();
+        }
+    }
+    window.closeCreateGroupModalOnOuterClick = closeCreateGroupModalOnOuterClick;
 
     function topicsViewHtml() {
         return `
@@ -510,11 +593,15 @@
     }
 
     function openGroupTopics(groupId, groupName) {
+        const g = myGroups.find(x => x.group_id === groupId);
+        if (g && (g.is_banned || g.banned)) {
+            alert("You are blacklisted and banned from accessing this group.");
+            return;
+        }
         activeBrowseGroupId = groupId;
         activeBrowseGroupName = groupName;
         activeBrowseTopicId = null;
         browseView = 'topics';
-        
         renderGroupsBrowser();
     }
     window.openGroupTopics = openGroupTopics;
@@ -523,7 +610,6 @@
         activeBrowseTopicId = topicId;
         activeBrowseTopicTitle = title;
         browseView = 'posts';
-        loadGroupMembersForExclusion();
         renderGroupsBrowser();
         if (typeof window.subscribeToTopic === 'function') {
             window.subscribeToTopic(topicId);
@@ -586,6 +672,15 @@
         if (!listEl) return;
 
         const data = await api(`/groups/${activeBrowseGroupId}/topics`);
+        
+        // Block access dynamically if API returns ban restrictions
+        if (data && (data.error || data.message) && (data.error?.toLowerCase().includes('ban') || data.message?.toLowerCase().includes('ban') || data.error?.toLowerCase().includes('blacklist') || data.message?.toLowerCase().includes('blacklist'))) {
+            listEl.innerHTML = `<div class="empty-state" style="color: #dc2626; font-weight: bold;">${data.error || data.message}</div>`;
+            const form = document.getElementById('newTopicFormInline');
+            if (form) form.style.display = 'none';
+            return;
+        }
+
         const topics = (data && (data.data || data)) || [];
 
         listEl.innerHTML = topics.map(t => `
@@ -602,14 +697,24 @@
         if (!container) return;
 
         const t = await api(`/topics/${activeBrowseTopicId}`);
-        if (!t || t.message) {
-            container.innerHTML = `<div class="muted">${(t && t.message) || 'This topic could not be loaded.'}</div>`;
+        if (!t || t.message || t.error) {
+            const errorMsg = (t && (t.error || t.message)) || 'This topic could not be loaded.';
+            container.innerHTML = `<div class="muted" style="color: #dc2626; font-weight: bold;">${errorMsg}</div>`;
+            const composer = document.getElementById('dashComposerForm');
+            if (composer) composer.style.display = 'none';
             return;
         }
+
+        // Ensure composer form visibility if accessible
+        const composer = document.getElementById('dashComposerForm');
+        if (composer) composer.style.display = 'flex';
 
         const myId = window.CURRENT_USER ? window.CURRENT_USER.user_id : null;
         const posts = t.posts || [];
 
+        // Reset the lookup table that Forward/Flag use to find a message's
+        // full content + id by index, without stuffing raw/quoted text into
+        // onclick attrs.
         currentTopicMessages = [];
 
         container.innerHTML = posts.map(p => {
@@ -621,21 +726,36 @@
                 const replyMine = r.author_id === myId;
                 const replySide = replyMine ? 'mine' : 'theirs';
                 const replyAuthorName = r.author ? (r.author.full_name || r.author.name) : 'User';
-                return renderMsgGroup(replySide, replyAuthorName, r.content, timeOnly(r.replied_at || r.created_at), true);
+                return renderMsgGroup(replySide, replyAuthorName, r.content, timeOnly(r.replied_at || r.created_at), true, r.reply_id ?? r.post_id, r.is_flagged);
             }).join('');
 
-            return renderMsgGroup(side, authorName, p.content, timeOnly(p.posted_at || p.created_at), false) + repliesHtml;
+            return renderMsgGroup(side, authorName, p.content, timeOnly(p.posted_at || p.created_at), false, p.post_id, p.is_flagged) + repliesHtml;
         }).join('') || '<div class="muted">No messages yet in this topic — start the discussion below.</div>';
 
         container.scrollTop = container.scrollHeight;
     }
 
-    function renderMsgGroup(side, authorName, content, time, isReply) {
+    // One bubble + its Reply/Forward/Flag/timestamp row. `isReply` both adds
+    // the connecting-line modifier class and tells flagPost() which endpoint
+    // to call. `postId` is the post/reply's database id (used by Forward's
+    // share endpoint and by Flag); `flagged` reflects its current moderation
+    // state as returned by the API.
+    function renderMsgGroup(side, authorName, content, time, isReply, postId, flagged) {
         const msgIndex = currentTopicMessages.length;
-        currentTopicMessages.push({ author: authorName, content });
+        currentTopicMessages.push({ author: authorName, content, postId, isReply: !!isReply, flagged: !!flagged });
+
+        // MODIFIED: Flag is now offered to any lecturer who belongs to the
+        // group the active topic is in (see canFlagInGroup above) — not
+        // just the owner/active group admin. The server-side authorization
+        // on the /posts/{id}/flag and /replies/{id}/flag endpoints must be
+        // updated to match (group membership, not owner/admin-only).
+        const canFlag = canFlagInGroup(activeBrowseGroupId);
+        const flagHtml = canFlag
+            ? `<a class="flag-link${flagged ? ' flagged' : ''}" onclick="flagPost(${msgIndex})">${flagged ? 'Flagged' : 'Flag'}</a>`
+            : '';
 
         return `
-            <div class="msg-group ${side}${isReply ? ' is-reply' : ''}">
+            <div class="msg-group ${side}${isReply ? ' is-reply' : ''}${flagged ? ' is-flagged' : ''}" id="${postId ? 'post-' + postId : ''}">
                 <div class="bubble">
                     <span class="bubble-author">${authorName}</span>
                     <p class="bubble-text">${content}</p>
@@ -643,11 +763,56 @@
                 <div class="msg-actions">
                     <a class="reply-link" onclick="focusComposerWithMention('${authorName.replace(/'/g, "\\'")}')">Reply</a>
                     <a class="forward-link" onclick="openForwardModal(${msgIndex})">Forward</a>
+                    ${flagHtml}
                     <span class="msg-time">${time}</span>
                 </div>
             </div>
         `;
     }
+
+    // Toggles a post's or reply's flagged state, calling whichever endpoint
+    // matches the message type. MODIFIED: now rendered/callable for any
+    // lecturer who is a member of the group the active topic belongs to
+    // (see canFlagInGroup above).
+    async function flagPost(msgIndex) {
+        const msg = currentTopicMessages[msgIndex];
+        if (!msg || !msg.postId) return;
+        if (!canFlagInGroup(activeBrowseGroupId)) return; // client-side guard only; server must enforce this too
+
+        const ok = window.confirm(msg.flagged ? 'Remove flag from this message?' : 'Flag this message for review?');
+        if (!ok) return;
+
+        const endpoint = msg.isReply ? `/replies/${msg.postId}/flag` : `/posts/${msg.postId}/flag`;
+        const response = await api(endpoint, {
+            method: 'POST',
+            body: { flagged: !msg.flagged }
+        });
+
+        if (response && response.error) {
+            alert(response.error);
+            return;
+        }
+
+        // Notify if flagging triggered a blacklist and ban
+        if (response && response.message) {
+            alert(response.message);
+        }
+
+        msg.flagged = !msg.flagged;
+
+        // Update the flag link and bubble highlight in place instead of
+        // re-rendering the whole thread.
+        const postEl = document.getElementById(`post-${msg.postId}`);
+        if (postEl) {
+            postEl.classList.toggle('is-flagged', msg.flagged);
+            const flagLink = postEl.querySelector('.flag-link');
+            if (flagLink) {
+                flagLink.textContent = msg.flagged ? 'Flagged' : 'Flag';
+                flagLink.classList.toggle('flagged', msg.flagged);
+            }
+        }
+    }
+    window.flagPost = flagPost;
 
     /* ---------- Post exclusion checklist ---------- */
     async function loadGroupMembersForExclusion() {
@@ -858,19 +1023,10 @@
     // Delegated: the topic form and composer form are re-created whenever
     // renderGroupsBrowser() swaps views, so we listen on the always-present
     // container instead of binding directly to elements that come and go.
+    // NOTE: createGroupForm now lives inside the modal markup, outside
+    // #groupsBrowserContent, so it's bound directly below instead.
     document.getElementById('groupsBrowserContent').addEventListener('submit', async (e) => {
-        if (e.target && e.target.id === 'createGroupForm') {
-            e.preventDefault();
-            const nameInput = document.getElementById('groupName');
-            const descInput = document.getElementById('groupDescription');
-            await api('/groups', {
-                method: 'POST',
-                body: { name: nameInput.value, description: descInput.value },
-            });
-            nameInput.value = '';
-            descInput.value = '';
-            loadGroups();
-        } else if (e.target && e.target.id === 'newTopicFormInline') {
+        if (e.target && e.target.id === 'newTopicFormInline') {
             e.preventDefault();
             if (!activeBrowseGroupId) return;
             const input = document.getElementById('newTopicTitleInline');
@@ -888,6 +1044,18 @@
             textarea.style.height = 'auto';
             loadBrowsePosts();
         }
+    });
+
+    document.getElementById('createGroupForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const nameInput = document.getElementById('groupName');
+        const descInput = document.getElementById('groupDescription');
+        await api('/groups', {
+            method: 'POST',
+            body: { name: nameInput.value, description: descInput.value },
+        });
+        closeCreateGroupModal();
+        loadGroups();
     });
 
     const toggleBtn = document.getElementById('toggleQuizFormBtn');
@@ -1196,17 +1364,8 @@
         await loadGroups();
         loadLecturerQuizzes();
         loadNotifications();
-
-        // Auto-refresh: keep quiz statuses (e.g. auto-opened/auto-closed
-        // by the scheduler) and notifications current in the background.
-        setInterval(() => {
-            loadLecturerQuizzes();
-            loadNotifications();
-        }, 20000);
     }
  
     init();
 </script>
 @endsection
- 
-
