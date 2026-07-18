@@ -39,10 +39,6 @@ class ReplyController extends Controller
             'content' => $request->content,
             'replied_at' => now(),
         ]);
-        event(new MessageBroadcast($reply, $post->topic_id));
-        // event(new MessageBroadcast($post));
-
-       // event(new MessageBroadcast($post->topic_id, 'reply', $reply->load('author')->toArray()));
 
         $author->update(['last_active_at' => now()]);
         $this->recordParticipation($author, $post->topic->group_id, 'reply');
@@ -55,6 +51,14 @@ class ReplyController extends Controller
                 'Reply',
                 $reply->reply_id
             );
+        }
+
+        // Real-time push is a nice-to-have; it must not take the whole
+        // request down when Reverb isn't running (see PostController::store()).
+        try {
+            event(new MessageBroadcast($reply, $post->topic_id));
+        } catch (\Throwable $e) {
+            report($e);
         }
 
         return response()->json($reply->load('author'), 201);
