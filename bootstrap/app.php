@@ -45,4 +45,8 @@ return Application::configure(basePath: dirname(__DIR__))
     })
     ->withExceptions(function (Exceptions $exceptions) {
         //
-    })->create();
+    })
+    //////////added for export pdf
+    ->withProviders([
+        \Barryvdh\DomPDF\ServiceProvider::class,
+    ])->create();
