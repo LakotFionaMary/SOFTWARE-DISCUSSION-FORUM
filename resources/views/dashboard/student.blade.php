@@ -915,12 +915,20 @@ window.showNotMemberNotice = showNotMemberNotice;
         if (tab) tab.style.display = adminGroups.length ? 'flex' : 'none';
 
         document.getElementById('groupAdminList').innerHTML = adminGroups.map(g => `
-            <div class="card">
-                <strong>${g.name}</strong>
+           <div class="card" style="display: flex; justify-content: space-between; align-items: center; padding: 16px;">
+            
+            <!-- Left Side: Group Info Text -->
+            <div>
+                <strong style="font-size: 16px; display: block; margin-bottom: 4px;">${g.name}</strong>
                 <div class="muted">${g.members_count ?? 0} members · ${g.topics_count ?? 0} topics</div>
-                <div style="margin-top: 8px;">
-                    <a class="btn btn-secondary" href="/groups/${g.group_id}/statistics" style="padding: 4px 10px; font-size: 13px;">View group statistics</a>
-                </div>
+            </div>
+            
+            <!-- Right Side: Button -->
+            <div style="display: flex; gap: 8px;">
+                <a class="btn btn-secondary" href="/groups/${g.group_id}/statistics" style="padding: 6px 12px; font-size: 13px; white-space: nowrap;">
+                    View group statistics
+                </a>
+            </div>
             </div>
         `).join('');
     }
