@@ -155,9 +155,6 @@
     }
 </style>
 
-<div class="eyebrow">Lecturer Dashboard</div>
-<h1 id="welcome">Loading your dashboard…</h1>
- 
 <div class="dash-shell">
     <div class="dash-main">
         <!-- ================= MY GROUPS ================= -->
@@ -458,7 +455,6 @@
             window.location.replace('/dashboard/admin' + window.location.search);
             return;
         }
-        document.getElementById('welcome').textContent = `Welcome, ${me.full_name}`;
     }
 
     async function loadGroups() {

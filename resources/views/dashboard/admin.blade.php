@@ -3,9 +3,6 @@
 @section('title', 'Administrator Dashboard')
 
 @section('content')
-<div class="eyebrow">Administrator Dashboard</div>
-<h1 id="welcome">Loading your dashboard…</h1>
-
 <div class="dash-shell">
    
 
@@ -60,7 +57,6 @@
             window.location.replace(window.CURRENT_ROLE === 'lecturer' ? '/dashboard/lecturer' : '/dashboard/student');
             return;
         }
-        document.getElementById('welcome').textContent = `Welcome, ${me.full_name}`;
     }
 
     async function loadSystemStats() {

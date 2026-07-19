@@ -183,9 +183,6 @@
     }
 </style>
 
-<div class="eyebrow">Student Dashboard</div>
-<h1 id="welcome">Loading your dashboard…</h1>
-
 <div class="dash-shell">
     <div class="dash-main">
         <!-- ================= GROUP ADMIN PANEL (students who admin a group) ================= -->
@@ -308,7 +305,6 @@
             window.location.replace((window.CURRENT_ROLE === 'administrator' ? '/dashboard/admin' : '/dashboard/lecturer') + window.location.search);
             return;
         }
-        document.getElementById('welcome').textContent = `Welcome, ${me.full_name}`;
     }
 
     /* ---------- Groups panel: single drill-down view ---------- */

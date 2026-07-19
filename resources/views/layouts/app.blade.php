@@ -35,12 +35,55 @@
             background: var(--paper);
             color: var(--ink);
         }
+        /* ---------- Global top bar: full-width strip above the shell ----------
+           Cream, same tone as the page background, so it reads as part of
+           the canvas rather than a separate colored banner. Holds the brand
+           on the left and the signed-in user's welcome message on the
+           right - both used to live lower down (sidebar brand row / a
+           per-dashboard <h1>) and are now consolidated up here so every
+           page gets the same top-of-screen chrome. */
+        .app-topbar {
+            display: flex; align-items: center; justify-content: space-between;
+            gap: 16px;
+            padding: 16px 28px;
+            background: var(--paper);
+            border-bottom: 1px solid var(--line);
+            position: sticky;
+            top: 0;
+            z-index: 40;
+        }
+        .app-topbar-brand {
+            display: flex; align-items: center; gap: 10px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            font-weight: 800; letter-spacing: .03em; text-transform: uppercase;
+            font-size: 17px;
+            color: var(--ink);
+        }
+        .app-topbar-brand-icon {
+            font-size: 16px; width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center;
+            background: rgba(47,111,94,.14); border-radius: 8px;
+            flex-shrink: 0;
+        }
+        .app-topbar-welcome {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            font-weight: 700;
+            font-size: 15px;
+            color: var(--warn);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        @media (max-width: 760px) {
+            .app-topbar { padding: 12px 16px; }
+            .app-topbar-brand { font-size: 14px; }
+            .app-topbar-welcome { font-size: 13px; }
+        }
         /* ---------- Global app shell: sidebar (left) + content (right) ----------
            This is the one consistent frame every page gets via
            @@extends('layouts.app'). Individual pages just @@yield('content')
            into the right-hand pane; they don't need to know the sidebar
            exists. Auth pages (login/register) opt out via a body class. */
-        .app-shell { display: flex; align-items: stretch; min-height: 100vh; }
+        .app-shell { display: flex; align-items: stretch; min-height: calc(100vh - 65px); }
         .app-sidebar {
             width: 248px;
             flex-shrink: 0;
@@ -49,23 +92,13 @@
             display: flex;
             flex-direction: column;
             position: sticky;
-            top: 0;
-            height: 100vh;
-        }
-        .app-brand {
-            display: flex; align-items: center; gap: 10px;
-            padding: 22px 20px 18px;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-            font-weight: 700; letter-spacing: .04em; text-transform: uppercase; font-size: 15px;
-        }
-        .app-brand-icon {
-            font-size: 16px; width: 30px; height: 30px; display: inline-flex; align-items: center; justify-content: center;
-            background: rgba(47,111,94,.25); border-radius: 8px;
+            top: 65px;
+            height: calc(100vh - 65px);
         }
         /* Hamburger toggle: only ever shown on mobile (see the 760px query
            below). Hidden here so it takes no space/has no effect on desktop. */
         .mobile-menu-toggle { display: none; }
-        .app-nav { display: flex; flex-direction: column; padding: 4px 10px; overflow-y: auto; flex: 1; }
+        .app-nav { display: flex; flex-direction: column; padding: 18px 10px 4px; overflow-y: auto; flex: 1; }
         .app-nav-section {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
             font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em;
@@ -114,17 +147,41 @@
         .app-sidebar-footer .app-user { opacity: .9; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .app-sidebar-footer a { color: var(--paper); opacity: .6; text-decoration: none; font-size: 12px; transition: opacity .12s ease; }
         .app-sidebar-footer a:hover { opacity: 1; text-decoration: underline; }
-        .app-main { flex: 1; min-width: 0; padding: 32px 24px 80px; }
-        .app-main > .content-col { max-width: 880px; margin: 0 auto; }
-        /* Dashboard/chat pages want to fill the available width rather than
-           sit in a narrow centered column like plain content pages (forms,
-           profile, etc). */
-        .app-main:has(.dash-shell) .content-col,
-        .app-main:has(.chat-thread) .content-col { max-width: 1400px; }
+        .app-main { flex: 1; min-width: 0; padding: 0; }
+        /* content-col is the one wrapper every page's @@yield('content') sits
+           in (see the <main> markup below). Making IT the flush white panel
+           - instead of the old padded, narrower, centered column - means
+           every page gets a full-bleed white area that starts exactly where
+           the top bar ends and touches the sidebar, the right edge, and the
+           bottom of the screen; only the top bar stays cream. */
+        .app-main > .content-col {
+            background: #fff;
+            min-height: calc(100vh - 65px);
+            border-left: 1px solid var(--line);
+            padding: 32px 28px 60px;
+        }
+        /* Dashboard/chat pages already build their own flush white box
+           (.dash-shell / .chat-thread) for the panel-switching UI, so let
+           content-col pass through untouched there to avoid a white-on-white
+           double border. */
+        .app-main:has(.dash-shell) > .content-col,
+        .app-main:has(.chat-thread) > .content-col {
+            background: transparent;
+            min-height: 0;
+            border-left: none;
+            padding: 0;
+        }
+        .app-main:has(.dash-shell) .dash-shell,
+        .app-main:has(.chat-thread) .chat-thread {
+            margin-top: 0;
+            border: none;
+            border-left: 1px solid var(--line);
+            border-radius: 0;
+            min-height: calc(100vh - 65px);
+        }
         @media (max-width: 760px) {
             .app-shell { flex-direction: column; }
             .app-sidebar { width: 100%; height: auto; position: static; flex-direction: row; align-items: center; }
-            .app-brand { padding: 12px 14px; }
             .app-nav { flex-direction: row; overflow-x: auto; padding: 0 6px; }
             .app-nav-section { display: none; }
             .app-nav-item { padding: 10px 12px; flex-shrink: 0; }
@@ -133,6 +190,7 @@
             .app-sidebar-footer { border-top: none; padding: 10px 14px; }
         }
         /* Auth pages (login/register/rules) render full-bleed, no sidebar */
+        body.auth-page .app-topbar { display: none; }
         body.auth-page .app-sidebar { display: none; }
         body.auth-page .app-main { padding: 0; }
         h1, h2, h3 { font-family: 'Iowan Old Style', Georgia, serif; color: var(--ink); }
@@ -297,9 +355,12 @@
         $onDashboard = request()->is('dashboard') || request()->is('dashboard/*');
         $onAdminDash = request()->is('dashboard/admin');
     @endphp
+    <div class="app-topbar">
+        <div class="app-topbar-brand"><span class="app-topbar-brand-icon">🚀</span> Smart Discussion Forum</div>
+        <div class="app-topbar-welcome" id="topbarWelcome">&nbsp;</div>
+    </div>
     <div class="app-shell">
         <aside class="app-sidebar">
-            <div class="app-brand"><span class="app-brand-icon">🚀</span> SDF</div>
             <nav class="app-nav">
                 <div class="app-nav-section">Workspace</div>
                 <a href="/dashboard?panel=panel-groups" data-dash-panel="panel-groups" data-role="student,lecturer,administrator" class="app-nav-item {{ ($onDashboard && !$onAdminDash && ($panel === 'panel-groups' || !$panel)) || ($onAdminDash && $panel === 'panel-groups') ? 'active' : '' }}">
@@ -443,6 +504,9 @@
             const nameEl = document.getElementById('sidebarUserName');
             const displayName = me.full_name || me.name || '';
             if (nameEl) nameEl.textContent = displayName;
+
+            const topbarWelcomeEl = document.getElementById('topbarWelcome');
+            if (topbarWelcomeEl) topbarWelcomeEl.textContent = displayName ? `Welcome, ${displayName}` : '';
 
             const avatarEl = document.getElementById('sidebarAvatar');
             if (avatarEl && displayName) {
