@@ -5,7 +5,6 @@
 @section('content')
 <!-- <div class="eyebrow"><a href="/dashboard/admin" style="color: inherit;">← Administrator Dashboard</a></div> -->
 <h1>Manage Users</h1>
-<p class="muted">Grant or change the Lecturer/Administrator role for any user. Every new signup starts as a Student — this is the only way anyone becomes a Lecturer or Administrator.</p>
 
 <div class="card">
     <input type="text" id="userSearch" placeholder="Search by name or email…" style="width: 100%; padding: 8px; margin-bottom: 12px;">
