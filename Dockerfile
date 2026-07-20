@@ -8,7 +8,9 @@ RUN apk add --no-cache \
     libxml2-dev \
     zip \
     unzip \
-    nginx
+    nginx \
+    nodejs \
+    npm
 
 RUN docker-php-ext-install pdo pdo_mysql bcmath gd
 
@@ -26,6 +28,10 @@ RUN chmod -R 777 storage bootstrap/cache
 # Install dependencies using production flags
 ENV COMPOSER_ALLOW_SUPERUSER=1
 RUN composer install --no-interaction --optimize-autoloader --no-dev
+
+# Build frontend assets for production (Vite / Chart.js)
+RUN npm ci
+RUN npm run build
 
 # Force absolute environment connection overrides
 ENV DB_CONNECTION=mysql
