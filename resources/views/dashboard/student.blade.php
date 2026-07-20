@@ -1500,13 +1500,51 @@ window.showNotMemberNotice = showNotMemberNotice;
         }).join('') || '<div class="empty-state">No recommendations yet.</div>';
     }
 
-    async function loadNotifications() {
-        const data = await api('/notifications');
-        const notifications = (data && (data.data || data)) || [];
-        document.getElementById('notifications').innerHTML = notifications.map(n => `
-            <div style="margin-bottom: 4px;"><strong>${n.type}</strong>: ${n.message}</div>
-        `).join('') || '<div class="empty-state">No notifications yet.</div>';
-    }
+   let currentNotifications = [];
+
+async function loadNotifications() {
+    const data = await api('/notifications');
+    currentNotifications = (data && (data.data || data)) || [];
+    renderNotifications();
+}
+
+function renderNotifications() {
+    document.getElementById('notifications').innerHTML = currentNotifications.map((n, i) => {
+        const meta = notifIconMeta(n.type);
+        return `
+            <div class="notif-card${!n.is_read ? ' unread' : ''}" onclick="markOneNotificationRead(${i})">
+                <div class="notif-icon ${meta.cls}">${meta.icon}</div>
+                <div class="notif-body">
+                    <div class="notif-title">${n.type}</div>
+                    <div class="notif-message">${n.message}</div>
+                    <div class="notif-time">${relativeTime(n.created_at)}</div>
+                </div>
+                ${!n.is_read ? '<span class="notif-dot"></span>' : ''}
+            </div>
+        `;
+    }).join('') || '<div class="empty-state">No notifications yet.</div>';
+}
+
+async function markOneNotificationRead(index) {
+    const n = currentNotifications[index];
+    if (!n || n.is_read) return;
+    await api(`/notifications/${n.notification_id}/read`, { method: 'PATCH', body: {} });
+    n.is_read = true;
+    renderNotifications();
+    refreshNotifBadge();
+}
+window.markOneNotificationRead = markOneNotificationRead;
+
+window.prependLiveNotification = function (e) {
+    currentNotifications.unshift({
+        notification_id: e.notification_id,
+        type: e.type,
+        message: e.message,
+        created_at: e.created_at,
+        is_read: false,
+    });
+    renderNotifications();
+};
 
     async function init() {
         initDashSidebar(document, 'panel-groups');
