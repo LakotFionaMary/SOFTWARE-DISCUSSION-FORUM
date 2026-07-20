@@ -27,7 +27,14 @@ RUN chmod -R 777 storage bootstrap/cache
 ENV COMPOSER_ALLOW_SUPERUSER=1
 RUN composer install --no-interaction --optimize-autoloader --no-dev
 
-# Setup entrypoint port binding
-EXPOSE 80
-CMD php artisan serve --host=0.0.0.0 --port=${PORT:-80}
+# Force absolute environment connection overrides
+ENV DB_CONNECTION=mysql
+ENV DB_HOST=${MYSQLHOST}
+ENV DB_PORT=${MYSQLPORT}
+ENV DB_DATABASE=${MYSQLDATABASE}
+ENV DB_USERNAME=${MYSQLUSER}
+ENV DB_PASSWORD=${MYSQLPASSWORD}
 
+# Setup entrypoint port binding and clear runtime caches
+EXPOSE 8080
+CMD php artisan config:clear && php artisan cache:clear && php artisan serve --host=0.0.0.0 --port=8080
