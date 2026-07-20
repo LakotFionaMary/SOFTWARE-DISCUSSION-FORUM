@@ -40,14 +40,11 @@ const topicId = {{ $topic }};
     window.Pusher = Pusher;
 }
 
-// 2. Manually boot Echo to bypass compiler bugs
 if (typeof window.Echo === 'undefined' || !window.Echo) {
     console.log("Forcing manual, inline configuration for Laravel Echo...");
-    
-    // Explicitly import Echo if you have it compiled, otherwise build it on top of the global Pusher
     window.Echo = new window.Echo({
         broadcaster: 'reverb',
-        key: '{{ env("REVERB_APP_KEY") }}', // Injects your key straight from the .env file
+        key: '{{ env("REVERB_APP_KEY") }}',
         wsHost: '127.0.0.1',
         wsPort: 8080,
         forceTLS: false,
@@ -62,11 +59,9 @@ if (typeof window.Echo === 'undefined' || !window.Echo) {
 let topicId = parseInt("{{ $topic }}") || null; 
 let activeChannelId = topicId; // Track the currently subscribed channel
 
-console.log("Current topic:", topicId);
-
+let activeChannelId = topicId; 
 let currentUserRole = 'Student';
 let currentUserId = null;
-
 
 /* ---------------- Inline icon library ---------------- */
 const ICONS = {
@@ -80,7 +75,6 @@ const ICONS = {
     link: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.5.5l2-2a5 5 0 0 0-7-7l-1.2 1.1"/><path d="M14 11a5 5 0 0 0-7.5-.5l-2 2a5 5 0 0 0 7 7l1.1-1.1"/></svg>',
 };
 
-// Safe API wrapper check
 async function executeApiCall(url, config = {}) {
     if (typeof api === 'function') {
         return await api(url, config);
@@ -88,11 +82,6 @@ async function executeApiCall(url, config = {}) {
         console.error("The custom global wrapper function 'api()' was not found in your layout.");
         return null;
     }
-}
-
-function timeOnly(dt) {
-    if(!dt) return "";
-    return new Date(dt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
 
 async function loadCurrentUser() {
@@ -103,13 +92,10 @@ async function loadCurrentUser() {
     }
 }
 
-let subscribed = false;
-
 async function loadTopic() {
     if (!topicId) return;
 
     const t = await executeApiCall(`/topics/${topicId}`);
-
     const titleEl = document.getElementById('topicTitle');
     const categoryEl = document.getElementById('topicCategory');
     const postsContainer = document.getElementById('posts');
@@ -123,12 +109,11 @@ async function loadTopic() {
     if(titleEl) titleEl.textContent = t.title || "No Title";
     if(categoryEl) categoryEl.textContent = t.category ?? 'General';
     
-
     renderPosts(t.posts || []);
-     if (postsContainer) {
+    if (postsContainer) {
         setTimeout(() => {
             postsContainer.scrollTop = postsContainer.scrollHeight;
-        }, 50); // A tiny 50ms delay makes sure the scroll is 100% accurate!
+        }, 50);
     }
     // --- ADD THIS HERE ---
     // Every single time a topic successfully finishes loading,
@@ -138,20 +123,11 @@ async function loadTopic() {
 
 console.log("TOPIC SCRIPT LOADED");   
 
-  window.subscribeToTopic = function () {
-//function subscribeToTopic() {
-    console.log("subscribeToTopic called");
-    console.log("topicId =", topicId);
 
-    if (!topicId) {
-        console.log("No topicId!");
-        return;
-    }
+console.log("TOPIC SCRIPT LOADED");   
 
-
-    // Check if Laravel Echo is loaded
     if (typeof window.Echo === 'undefined') {
-        console.error("CRITICAL: Laravel Echo is not defined on the window object! Check if your app.js layout file is compiling and importing Echo correctly.");
+    if (!topicId) return;
         return;
     }
 
@@ -161,86 +137,70 @@ console.log("TOPIC SCRIPT LOADED");
         
         
         window.Echo.join(`topic.${topicId}`)
-            .here((users) => {
-                console.log('Connected to topic! Online users:', users);
-            })
-            .joining((user) => {
-                console.log(user.full_name + ' joined');
-            })
-            .leaving((user) => {
-                console.log(user.full_name + ' left');
-            })
-            /*.listen('.message.sent', (event) => {
-                console.log('WebSocket Message Received (.message.sent):', event);
-                loadTopic();
-            })*/
-           .listen('.MessageBroadcast', (e) => { // Note the '.' prefix if using broadcastAs()
-                console.log("New message received:", e.reply);
-                console.log("!!! WEBSOCKET EVENT RECEIVED !!!");
-                console.log("Raw event payload:", e);
+        
+        
+        window.Echo.join(`topic.${topicId}`)
+            .here((users) => { console.log('Connected to topic! Online users:', users); })
+            .joining((user) => { console.log(user.full_name + ' joined'); })
+            .leaving((user) => { console.log(user.full_name + ' left'); })
 
-                // Safe guard: check if e or e.reply exists
-                if (!e || !e.reply) {
-                    console.error("Payload structure mismatch! Received:", e);
-                    return;
-                }
-
-                // Selective communication: don't render this post for a user
-                // it was posted with an exclusion against.
+                console.log("WebSocket event payload received:", e);
                 if (Array.isArray(e.excluded_user_ids) && e.excluded_user_ids.includes(currentUserId)) {
-                    console.log("Post excluded for current user, skipping render.");
+
                     return;
                 }
 
-                // 1. Identify if the message belongs to the current logged-in user
-                const isMine = e.reply.author_id === currentUserId;
-                const sideClass = isMine ? 'mine' : 'theirs';
-                const authorName = e.reply.author ? (e.reply.author.full_name || e.reply.author.name) : "User";
-                
-                const formattedTime = new Date(e.reply.replied_at || e.reply.created_at).toLocaleTimeString([], { 
-                    hour: '2-digit', 
-                    minute: '2-digit' 
-                });
+                    return;
+                }
 
-                // Determine if flagging action is allowed for the UI (Matches renderPosts logic)
-                const canFlag = currentUserRole === 'Administrator' || currentUserRole === 'Lecturer';
+                // DETECT: Identify if incoming model target is a sub-reply or parent post
+                const isReply = e.reply.hasOwnProperty('post_id') && e.reply.post_id !== null;
 
-                // 2. Build the exact HTML layout used in your renderPosts() function
-                const newReplyHtml = `
-                    <div class="msg-group ${sideClass} reply-row" id="reply-${e.reply.reply_id}">
-                        <div class="bubble ${e.reply.is_flagged ? 'is-flagged' : ''}">
-                            <div class="bubble-author">${authorName}</div>
-                            <div class="bubble-content">${e.reply.content}</div>
-                            <div class="bubble-meta">
-                                ${e.reply.is_flagged ? '<span class="bubble-flag-tag">flagged · </span>' : ''}
-                                ${formattedTime}
+                if (isReply) {
+                    // --- CASE A: IT IS A NESTED SUB-REPLY ---
+                    const replyStack = document.getElementById(`reply-stack-${e.reply.post_id}`);
+                    if (replyStack) {
+                        const newReplyHtml = `
+                            <div class="reply-row" id="reply-${e.reply.reply_id}" style="margin-bottom:8px; padding: 6px; background: rgba(0,0,0,0.02); border-radius: 4px;">
+                                <strong>${authorLink(e.reply.author)}</strong>
+                                <span class="muted">${new Date(e.reply.replied_at || e.reply.created_at).toLocaleString()}</span>
+                                ${e.reply.is_flagged ? '<span class="flag" style="color: #dc2626; font-weight: bold;"> · flagged</span>' : ''}
+                                <div>${e.reply.content}</div>
                             </div>
-                        </div>
-                        ${actionsHtml('reply', e.reply.reply_id, e.reply.is_flagged, canFlag)}
-                    </div>
-                `;
-
-                // 3. Find the reply composer for this specific post
-                const replyInput = document.getElementById(`reply-input-${e.reply.post_id}`);
-                
-                if (replyInput) {
-                    // Get the composer container wrapper (<div class="reply-composer">)
-                    const replyComposer = replyInput.closest('.reply-composer');
-                    
-                    if (replyComposer) {
-                        // Insert the new reply directly BEFORE the reply input composer!
-                        // This guarantees it goes to the bottom of the reply stack, right above the input field.
-                        replyComposer.insertAdjacentHTML('beforebegin', newReplyHtml);
+                        `;
                     }
                 } else {
-                    // Fallback: If we can't find the composer, append to the bottom of the thread
+                        loadTopic();
                     const postsContainer = document.getElementById('posts');
                     if (postsContainer) {
-                        postsContainer.insertAdjacentHTML('beforeend', newReplyHtml);
-                    }
-                }
-
-                // 4. Auto-scroll container so users see the incoming text bubble
+                    // --- CASE B: IT IS A NEW PARENT POST ---
+                    const postsContainer = document.getElementById('posts');
+                    if (postsContainer) {
+                        if (postsContainer.querySelector('.muted') && postsContainer.children.length === 1) {
+                            postsContainer.innerHTML = '';
+                        }
+                        
+                        const targetPostId = e.reply.post_id || e.reply.id;
+                        const newPostHtml = `
+                            <div class="card" id="post-card-${targetPostId}" style="margin-bottom: 24px; padding: 16px;">
+                                <strong>${authorLink(e.reply.author)}</strong>
+                                <span class="muted">${new Date(e.reply.posted_at || e.reply.created_at).toLocaleString()}</span>
+                                ${e.reply.is_flagged ? '<span class="flag" style="color: #dc2626; font-weight: bold;"> · flagged</span>' : ''}
+                                <p style="margin: 12px 0;">${e.reply.content}</p>
+                                <div style="margin-bottom: 12px;">
+                                    <button class="btn secondary" onclick="shareToSocial(${targetPostId}, 'Clipboard')">Forward</button>
+                                    <button class="btn secondary" onclick="flagPost(${targetPostId})">Flag</button>
+                                </div>
+                                <div style="margin-top:10px; padding-left:16px; border-left: 2px solid #d8d2c4;">
+                                    <div id="reply-stack-${targetPostId}"></div>
+                                    <form onsubmit="return submitReply(event, ${targetPostId})" style="margin-top: 12px; display: flex; gap: 8px;">
+                                        <input type="text" id="reply-input-${targetPostId}" placeholder="Reply…" style="flex: 1; padding: 6px;" required>
+                                        <button class="btn secondary" type="submit">Reply</button>
+                                    </form>
+                                </div>
+                            </div>
+                        `;
+                        postsContainer.insertAdjacentHTML('beforeend', newPostHtml);
                 const postsContainer = document.getElementById('posts');
                 if (postsContainer) {
                     postsContainer.scrollTop = postsContainer.scrollHeight;
@@ -251,156 +211,41 @@ console.log("TOPIC SCRIPT LOADED");
         console.error("Echo join operation failed with error:", error);
     }
 }
-       document.addEventListener('DOMContentLoaded', async () => {
-    console.log("Page loaded. Initializing setup...");
-
-    // 1. Try to load user
-    try {
-        await loadCurrentUser();
-        console.log("User loaded. Role:", currentUserRole, "ID:", currentUserId);
-    } catch (err) {
-        console.error("Failed to load current user:", err);
-    }
-
-    // 2. Try to load topic messages
-    try {
-        await loadTopic();
-        console.log("Topic messages loaded successfully.");
-    } catch (err) {
-        console.error("Failed to load topic:", err);
-    }
-
-    // 3. Try to load exclusions
-    try {
-        await loadGroupsForExclusion();
-    } catch (err) {
-        console.error("Failed to load exclusions:", err);
-    }
-
-    // 4. Try to subscribe to WebSockets (We don't await this)
-    try {
-        subscribeToTopic();
-    } catch (err) {
-        console.error("Failed to subscribe to topic channel:", err);
-    }
-});
-
-/*async function loadTopic() {
-    if(!topicId) return;
-    const t = await executeApiCall(`/topics/${topicId}`);
-    
-    const titleEl = document.getElementById('topicTitle');
-    const categoryEl = document.getElementById('topicCategory');
-    const postsContainer = document.getElementById('posts');
-
-    if (!t || t.message) {
-        if(titleEl) titleEl.textContent = 'Unavailable';
-        if(postsContainer) postsContainer.innerHTML = `<div class="muted">${(t && t.message) || 'This topic could not be loaded.'}</div>`;
-        return;
-    }
-
-    if(titleEl) titleEl.textContent = t.title || "No Title";
-    if(categoryEl) categoryEl.textContent = t.category ?? 'General';
-    
-    renderPosts(t.posts || []);
-    
-    if(postsContainer) {
-        postsContainer.scrollTop = postsContainer.scrollHeight;
-    }
-}*/
-
-async function loadGroupsForExclusion() {
-    const select = document.getElementById('excludeGroup');
-    if(!select) return;
-    try {
-        const res = await executeApiCall('/groups');
-        if(!res) return;
-        const groups = res.data || res;
-        select.innerHTML = '<option value="">— Select a group —</option>' +
-            groups.map(g => `<option value="${g.group_id}">${g.name}</option>`).join('');
-    } catch (err) {
-        console.error('Could not load groups', err);
+        console.error("Echo join operation failed with error:", error);
     }
 }
 
-async function loadMembersForExclusion(groupId) {
-    const select = document.getElementById('excludeUsers');
-    if(!select) return;
-    if (!groupId) {
-        select.innerHTML = '<option disabled>Select a group above to load its members…</option>';
-        return;
-    }
-    select.innerHTML = '<option disabled>Loading members…</option>';
-    try {
-        const res = await executeApiCall(`/groups/${groupId}/members`);
-        if(!res) return;
-        const members = res.data || res;
-        select.innerHTML = members.length
-            ? members.map(m => `<option value="${m.user_id}">${m.full_name || m.name}</option>`).join('')
-            : '<option disabled>No members in this group.</option>';
-    } catch (err) {
-        console.error('Could not load group members', err);
-        select.innerHTML = '<option disabled>Failed to load members.</option>';
-    }
-}
-
-const excludeGroupEl = document.getElementById('excludeGroup');
-if(excludeGroupEl) {
-    excludeGroupEl.addEventListener('change', (e) => {
-        loadMembersForExclusion(e.target.value);
-    });
-}
-
-function actionsHtml(kind, id, isFlagged, canFlag) {
-    const flagEndpoint = kind === 'post' ? `/posts/${id}/flag` : `/replies/${id}/flag`;
-    return `
-        <div class="bubble-actions">
-            <div class="share-wrap">
-                <button class="icon-btn" type="button" title="Forward to social media" onclick="toggleShareMenu('${kind}-${id}')">
-                    ${ICONS.share}
-                </button>
-                <div class="share-menu" id="share-menu-${kind}-${id}">
-                    <button type="button" onclick="shareToSocial(${id}, 'WhatsApp')">${ICONS.whatsapp} WhatsApp</button>
-                    <button type="button" onclick="shareToSocial(${id}, 'Twitter')">${ICONS.twitter} X / Twitter</button>
-                    <button type="button" onclick="shareToSocial(${id}, 'Facebook')">${ICONS.facebook} Facebook</button>
-                    <button type="button" onclick="shareToSocial(${id}, 'LinkedIn')">${ICONS.linkedin} LinkedIn</button>
-                    <button type="button" onclick="shareToSocial(${id}, 'Clipboard')">${ICONS.link} Copy link</button>
-                </div>
-            </div>
-            ${canFlag ? `
-                <button class="icon-btn flag-btn ${isFlagged ? 'is-flagged' : ''}" type="button"
-                    title="Flag for moderation" onclick="flagItem('${flagEndpoint}')">
-                    ${ICONS.flag}
-                </button>
-            ` : ''}
-        </div>
-    `;
-}
+document.addEventListener('DOMContentLoaded', async () => {
 
 function authorLink(author) {
     if (!author) return 'Unknown';
-    return `<span class="author-link" style="cursor:pointer; text-decoration:underline;" onclick="viewProfile(${author.user_id})">${author.full_name}</span>`;
+
 }
 
 function renderPosts(posts) {
     document.getElementById('posts').innerHTML = posts.map(p => `
-        <div class="card">
+
             <strong>${authorLink(p.author)}</strong>
             <span class="muted">${new Date(p.posted_at).toLocaleString()}</span>
-            ${p.is_flagged ? '<span class="flag"> · flagged</span>' : ''}
-            <p>${p.content}</p>
-            <button class="btn secondary" onclick="shareToSocial(${p.post_id})">Forward</button>
-            <button class="btn secondary" onclick="flagPost(${p.post_id})">Flag</button>
+        <div class="card" id="post-card-${p.post_id}" style="margin-bottom: 24px; padding: 16px;">
+            <strong>${authorLink(p.author)}</strong>
+            <span class="muted">${new Date(p.posted_at).toLocaleString()}</span>
+            ${p.is_flagged ? '<span class="flag" style="color: #dc2626; font-weight: bold;"> · flagged</span>' : ''}
+            <p style="margin: 12px 0;">${p.content}</p>
+            <div style="margin-bottom: 12px;">
             <div style="margin-top:10px; padding-left:16px; border-left: 2px solid #d8d2c4;">
-                ${(p.replies || []).map(r => `
-                    <div style="margin-bottom:8px;">
-                        <strong>${authorLink(r.author)}</strong>
-                        <span class="muted">${new Date(r.replied_at).toLocaleString()}</span>
-                        <div>${r.content}</div>
-                    </div>
-                `).join('')}
-                <form onsubmit="return submitReply(event, ${p.post_id})">
-                    <input type="text" placeholder="Reply…" required>
+                <button class="btn secondary" onclick="flagPost(${p.post_id})">Flag</button>
+            </div>
+            <div style="margin-top:10px; padding-left:16px; border-left: 2px solid #d8d2c4;">
+                <div id="reply-stack-${p.post_id}">
+                    ${(p.replies || []).map(r => `
+                        <div class="reply-row" id="reply-${r.reply_id}" style="margin-bottom:8px; padding: 6px; background: rgba(0,0,0,0.02); border-radius: 4px;">
+                            <strong>${authorLink(r.author)}</strong>
+                            <span class="muted">${new Date(r.replied_at).toLocaleString()}</span>
+                            ${r.is_flagged ? '<span class="flag" style="color: #dc2626; font-weight: bold;"> · flagged</span>' : ''}
+                            <div>${r.content}</div>
+                        </div>
+                    `).join('')}
                     <button class="btn secondary" type="submit">Reply</button>
                 </form>
             </div>
@@ -410,8 +255,14 @@ function renderPosts(posts) {
 
 async function submitReply(e, postId) {
     e.preventDefault();
-    const input = e.target.querySelector('input');
-    await api(`/posts/${postId}/replies`, { method: 'POST', body: { content: input.value } });
+
+async function submitReply(e, postId) {
+    e.preventDefault();
+    const input = document.getElementById(`reply-input-${postId}`);
+    if (!input || !input.value.trim()) return false;
+
+    await executeApiCall(`/posts/${postId}/replies`, { 
+        method: 'POST', 
     loadTopic();
     return false;
 }
@@ -422,7 +273,7 @@ async function shareToSocial(postId) {
 }
 
 async function flagPost(postId) {
-    await api(`/posts/${postId}/flag`, { method: 'POST' });
+}
     loadTopic();
 }
 
@@ -431,7 +282,7 @@ document.getElementById('postForm').addEventListener('submit', async (e) => {
     const excludeRaw = document.getElementById('excludeIds').value.trim();
     const exclude_user_ids = excludeRaw ? excludeRaw.split(',').map(s => parseInt(s.trim())) : [];
 
-    await api(`/topics/${topicId}/posts`, {
+    const excludeRaw = document.getElementById('excludeIds').value.trim();
         method: 'POST',
         body: { content: document.getElementById('postContent').value, exclude_user_ids },
     });
@@ -450,89 +301,16 @@ async function shareToSocial(postId, platform) {
     }
 
     const shareUrl = res.shared_url || `${window.location.origin}/topics/${topicId}#post-${postId}`;
-
-    switch (platform) {
-        case 'WhatsApp':
-            window.open(`https://wa.me/?text=${encodeURIComponent(shareUrl)}`, '_blank');
-            break;
-        case 'Twitter':
-            window.open(`https://twitter.com/intent/tweet?url=${encodeURIComponent(shareUrl)}`, '_blank');
-            break;
-        case 'Facebook':
-            window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`, '_blank');
-            break;
-        case 'LinkedIn':
-            window.open(`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(shareUrl)}`, '_blank');
-            break;
-        case 'Clipboard':
-        default:
-            try {
-                await navigator.clipboard.writeText(shareUrl);
-                alert('Link copied to clipboard.');
-            } catch (err) {
-                alert(`Copy this link: ${shareUrl}`);
-            }
-            break;
     }
-}
 
-async function flagItem(endpoint) {
-    const res = await executeApiCall(endpoint, { method: 'POST' });
-    if (res && res.message && !res.post && !res.reply) {
-        alert(res.message);
-    }
-    loadTopic();
-}
-
-/* Form submission hooks safely mounted */
-const cardForm = document.getElementById('postFormCard');
-if(cardForm) {
-    cardForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const excludeSelect = document.getElementById('excludeUsers');
-        const exclude_user_ids = excludeSelect ? Array.from(excludeSelect.selectedOptions)
-            .map(opt => parseInt(opt.value))
-            .filter(id => !isNaN(id)) : [];
-            
-        await executeApiCall(`/topics/${topicId}/posts`, {
-            method: 'POST',
-            body: { content: document.getElementById('postContentCard').value, exclude_user_ids },
-        });
-        e.target.reset();
-        const exGroup = document.getElementById('excludeGroup');
-        if(exGroup) exGroup.value = '';
-        loadMembersForExclusion(null);
-        loadTopic();
-    });
-}
-
-const composerForm = document.getElementById('postFormComposer');
-if(composerForm) {
-    composerForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const textarea = document.getElementById('postContentComposer');
-        const contentVal = textarea.value.trim();
-        if(!contentVal) return;
-
-        // Reset the input immediately to make it feel fast (WhatsApp style!)
-        textarea.value = '';
-        if(textarea) textarea.style.height = 'auto';
-
-        const res = await executeApiCall(`/topics/${topicId}/posts`, {
-            method: 'POST',
-            body: { content: contentVal, exclude_user_ids: [] },
-        });
-
-        if (res && res.message && !res.author) {
-            alert(res.message);
-        }
-
-        // Refresh the thread locally to show your newly sent message instantly
-        await loadTopic();
-    });
-}
+    const shareUrl = res.shared_url || `${window.location.origin}/topics/${topicId}#post-${postId}`;
+    try {
+        await navigator.clipboard.writeText(shareUrl);
+        alert('Link copied to clipboard.');
+    } catch (err) {
+        alert(`Copy this link: ${shareUrl}`);
 async function viewProfile(userId) {
-    const profile = await api(`/users/${userId}/profile`);
+}
     if (!profile) return;
 
     document.getElementById('modalName').textContent = profile.full_name;

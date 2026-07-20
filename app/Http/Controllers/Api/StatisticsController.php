@@ -83,6 +83,16 @@ class StatisticsController extends Controller
 
         $totalPosts = Post::whereHas('topic', fn ($q) => $q->where('group_id', $group->group_id))->count();
 
+        // ADDED: members_count, topics_count, and replies_count. The admin
+        // dashboard's "Visual Charts" view (viewInlineGroupStats() in
+        // admin.blade.php) reads exactly these three field names off this
+        // response - they were never actually computed/returned here, so
+        // "Members Count", "Topics Managed", and "Internal Replies" always
+        // silently rendered as 0 regardless of the group's real numbers.
+        $membersCount = $group->members()->count();
+        $topicsCount = $group->topics()->count();
+        $repliesCount = Reply::whereHas('post.topic', fn ($q) => $q->where('group_id', $group->group_id))->count();
+
         $activeContributors = $group->members()
             ->where('last_active_at', '>=', now()->subDays(7))
             ->count();
@@ -100,7 +110,10 @@ class StatisticsController extends Controller
 
         return response()->json([
             'group' => $group->name,
+            'members_count' => $membersCount,
+            'topics_count' => $topicsCount,
             'total_posts' => $totalPosts,
+            'replies_count' => $repliesCount,
             'active_contributors' => $activeContributors,
             'banned_individuals' => $bannedIndividuals,
             'unanswered_topics' => $unansweredTopics,

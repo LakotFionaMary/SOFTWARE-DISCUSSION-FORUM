@@ -298,17 +298,6 @@
 
     let myGroups = [];
 
-    async function loadWelcome() {
-        const me = await loadCurrentUser();
-        if (!me) return;
-        // A lecturer/admin landing here directly (e.g. old bookmark) gets
-        // bounced to the dashboard that actually matches their role.
-        if (window.CURRENT_ROLE !== 'student') {
-            window.location.replace((window.CURRENT_ROLE === 'administrator' ? '/dashboard/admin' : '/dashboard/lecturer') + window.location.search);
-            return;
-        }
-    }
-
     /* ---------- Groups panel: single drill-down view ---------- */
     let browseView = 'groups'; // 'groups' | 'topics' | 'posts'
     let activeBrowseGroupId = null;
@@ -415,7 +404,7 @@
                 // Pass through the post/reply id + moderation flag so live
                 // posts get the same Flag control and highlight as posts
                 // loaded from the initial fetch.
-                const newPostHtml = renderMsgGroup(side, authorName, e.reply.content, timeStr, false, e.reply.post_id ?? e.reply.reply_id, e.reply.is_flagged);
+                const newPostHtml = renderMsgGroup(side, authorName, e.reply.content, timeStr, false, e.reply.post_id ?? e.reply.reply_id, e.reply.is_flagged, e.reply.post_id);
 
                 // Append the live message to the chat view container
                 container.insertAdjacentHTML('beforeend', newPostHtml);
@@ -508,10 +497,6 @@
                             : `<button type="button" class="join-btn" onclick="joinGroupInline(event, ${g.group_id})">Join</button>`
                         }
                     </div>
-                    <div class="members-toggle-row">
-                        <a class="members-toggle-link" id="membersToggle-${g.group_id}" onclick="toggleGroupMembers(event, ${g.group_id})">Show members</a>
-                        <div class="member-names" id="membersNames-${g.group_id}"></div>
-                    </div>
                 </div>
         `;
     }).join('') || '<div class="empty-state">No groups exist yet.</div>';
@@ -598,16 +583,17 @@ function closeCreateGroupModalOnOuterClick(event) {
     function topicsViewHtml() {
         // Group admins get a quick shortcut straight to their group statistics
         // page without having to leave the drill-down view (the full stats
-        // link still also lives in the "Group Admin" sidebar panel). It now
+        // link still also lives in the "Group Admin" sidebar panel). It
         // lives inline with the Members / New Topic actions (last in the
-        // row) instead of a separate floated line, and uses the same
-        // "btn secondary" sizing as the other action buttons.
+        // row), using the same "btn secondary" sizing as the other action
+        // buttons.
         const statsShortcut = isGroupAdmin(activeBrowseGroupId)
             ? `<a class="btn secondary" href="/groups/${activeBrowseGroupId}/statistics">View statistics</a>`
             : '';
-            /* removed back to groups and added create topic, searching , filtering */
     return `
-          ${statsShortcut}
+        <a class="back-link" onclick="browseGoBack()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+            Back to groups
+        </a>
         <div class="topics-head">
             <div>
                 <h3>${activeBrowseGroupName}</h3>
@@ -868,44 +854,6 @@ window.showNotMemberNotice = showNotMemberNotice;
         renderGroupsBrowser();
     }
     window.browseGoBack = browseGoBack;
-
-    /* ---------- Group members toggle (names under each group card in Groups list) ---------- */
-    const groupMembersCache = {};
-
-    async function toggleGroupMembers(event, groupId) {
-        event.stopPropagation();
-        const namesEl = document.getElementById(`membersNames-${groupId}`);
-        const toggleEl = document.getElementById(`membersToggle-${groupId}`);
-        if (!namesEl || !toggleEl) return;
-
-        const isOpen = namesEl.classList.contains('open');
-        if (isOpen) {
-            namesEl.classList.remove('open');
-            toggleEl.textContent = 'Show members';
-            return;
-        }
-
-        toggleEl.textContent = 'Hide members';
-        namesEl.classList.add('open');
-
-        if (groupMembersCache[groupId]) {
-            namesEl.innerHTML = groupMembersCache[groupId];
-            return;
-        }
-
-        namesEl.innerHTML = '<span class="muted">Loading members…</span>';
-
-        const data = await api(`/groups/${groupId}/members`);
-        const members = (data && (data.data || data)) || [];
-
-        const html = members.map(m => `<span class="member-chip">${m.full_name || m.name}</span>`).join('')
-            || '<span class="muted">No members yet.</span>';
-
-        groupMembersCache[groupId] = html;
-        namesEl.innerHTML = html;
-    }
-    window.toggleGroupMembers = toggleGroupMembers;
-
 
     async function joinGroupInline(event, groupId) {
         event.stopPropagation();
@@ -1562,7 +1510,16 @@ window.showNotMemberNotice = showNotMemberNotice;
 
     async function init() {
         initDashSidebar(document, 'panel-groups');
-        await loadWelcome();
+
+        const me = await loadCurrentUser();
+        if (!me) return;
+        // A lecturer/admin landing here directly (e.g. old bookmark) gets
+        // bounced to the dashboard that actually matches their role.
+        if (window.CURRENT_ROLE !== 'student') {
+            window.location.replace((window.CURRENT_ROLE === 'administrator' ? '/dashboard/admin' : '/dashboard/lecturer') + window.location.search);
+            return;
+        }
+
         await loadGroups();
         loadMyGrades();
         loadStudentQuizzes();

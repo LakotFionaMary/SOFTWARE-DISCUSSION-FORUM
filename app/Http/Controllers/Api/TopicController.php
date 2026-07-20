@@ -57,7 +57,17 @@ class TopicController extends Controller
             ->whereNotNull('category')
             ->distinct()
             ->orderBy('category')
-            ->pluck('category');
+            ->pluck('category')
+            // FIXED: pluck() keeps each row's own primary key as the
+            // collection key (e.g. topic_id), which is essentially never a
+            // clean 0..n-1 sequence. json_encode()'ing a non-sequential
+            // collection serializes it as a JSON *object* instead of an
+            // array, which is exactly why the frontend's `cats.map(...)`
+            // was throwing "cats.map is not a function" — it received
+            // {"5": "Networking", "12": "Security"} instead of
+            // ["Networking", "Security"]. ->values() reindexes to a clean
+            // array before it goes out.
+            ->values();
 
         return response()->json($categories);
     }

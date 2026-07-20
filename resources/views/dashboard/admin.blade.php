@@ -9,7 +9,10 @@
     <div class="dash-main">
         <!-- ================= SYSTEM OVERVIEW ================= -->
         <div class="dash-panel" id="panel-overview">
-            <div class="section-title"><h2 style="margin:0;">System Overview</h2></div>
+            <div class="section-title" style="display: flex; justify-content: space-between; align-items: center;">
+                <h2 style="margin:0;">System Overview</h2>
+                <button class="btn secondary" id="refreshStatsBtn" onclick="loadSystemStats()" style="padding: 4px 10px; font-size: 13px;">Refresh</button>
+            </div>
             <div id="systemStats" class="stat-grid">
                 <div class="stat-card"><div class="value">…</div><div class="label">Loading</div></div>
             </div>
@@ -18,10 +21,25 @@
 
         <!-- ================= GROUPS ================= -->
         <div class="dash-panel" id="panel-groups">
-            <div class="section-title">
+            <div class="section-title" style="display: flex; justify-content: space-between; align-items: center;">
                 <h2 style="margin:0;">Groups</h2>
+                <!-- Step 6 Added: Action button to download the currently viewed group metrics copy -->
+                <button class="btn" id="exportReportBtn" onclick="exportAnalyticsReport()" style="display: none;">Download and Export Report</button>
             </div>
             <p class="muted">As an administrator you can view statistics and the gradebook for every group on the platform.</p>
+            
+            <!-- Step 5 Added: Inline placeholder canvas area to render graphic charts safely under groups -->
+            <div id="groupStatsVisualization" class="card" style="margin-bottom: 16px; padding: 16px; display: none;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                    <strong id="visualChartTitle">Group Statistics Visualization</strong>
+                    <button class="btn secondary" style="padding: 2px 8px; font-size: 11px;" onclick="closeGroupStatsView()">Hide Charts</button>
+                </div>
+                <!-- MODIFIED CONTAINER STYLING: Added position relative and explicit height to force Chart.js to paint correctly -->
+                <div style="position: relative; height: 250px; width: 100%;">
+                    <canvas id="adminMetricsChart"></canvas>
+                </div>
+            </div>
+
             <div id="groupsList" class="muted">Loading groups…</div>
         </div>
 
@@ -47,8 +65,19 @@
 @endsection
 
 @section('scripts')
+<!-- FIXED: chart.js used to be loaded here from https://cdn.jsdelivr.net/npm/chart.js.
+     That's an external network dependency - if it's blocked or unreachable
+     (firewall, offline dev environment, ad-blocker, etc.) this script tag
+     fails silently and every `new Chart(...)` call below throws "Chart is
+     not defined". It's now bundled through Vite instead (see
+     resources/js/app.js, which imports chart.js and exposes it as
+     window.Chart) - no separate request, no external dependency to go down. -->
 <script>
     if (!localStorage.getItem('sdf_token')) { window.location.href = '/'; }
+
+    // Step 5 & 6 dynamic additions: State trackers tracking active visualization matrices
+    let activeChartInstance = null;
+    let currentSelectedGroupData = null;
 
     async function loadWelcome() {
         const me = await loadCurrentUser();
@@ -107,32 +136,111 @@
                 <div style="margin-top: 8px;">
                     <a class="btn btn-secondary" href="/groups/${g.group_id}/statistics" style="padding: 4px 10px; font-size: 13px;">Statistics</a>
                     <a class="btn btn-secondary" href="/groups/${g.group_id}/gradebook" style="padding: 4px 10px; font-size: 13px; margin-left: 6px;">Gradebook</a>
+                    <!-- Added Option: Dedicated Visual Charting option positioned directly alongside existing triggers -->
+                    <button class="btn btn-secondary" onclick="viewInlineGroupStats(${g.group_id}, '${g.name.replace(/'/g, "\\'")}')" style="padding: 4px 10px; font-size: 13px; margin-left: 6px; background: var(--accent); color: white;">Visual Charts</button>
                 </div>
             </div>
         `).join('') || '<div class="empty-state">No groups have been created yet.</div>';
     }
 
-    // MODIFIED: loadWarnings() and loadFlaggedContent() have been merged
-    // into loadWarningsAndFlags(), which fetches both inactivity warnings
-    // and flagged-content notifications, normalizes them into a common row
-    // shape, sorts the combined list by date (most recent first), and
-    // renders them into ONE table under the "Inactivity Warnings" heading —
-    // so flagged posts/replies from both the lecturer dashboard and the
-    // student group-admin dashboard show up right alongside inactivity
-    // warnings instead of in their own separate section.
-    //
-    // Flagged content still comes from GET /notifications (5.10
-    // Notification Module) filtered down to flag-related entries, since
-    // there's no dedicated "list flagged content" route in routes/api.php.
-    // PostController::flag() and ReplyController::flag() both notify every
-    // Administrator ('Post Flagged' / 'Reply Flagged') regardless of
-    // whether the flag came from a lecturer or a student group admin, which
-    // is what this filter matches on.
+    // Step 5 Added Hook: Captures data streams dynamically and plots graphical models matching Step 3 metrics 
+    async function viewInlineGroupStats(groupId, groupName) {
+        const stats = await api(`/groups/${groupId}/statistics`) || await api(`/statistics/system`); 
+        if (!stats) return;
+
+        currentSelectedGroupData = { group_id: groupId, group_name: groupName, ...stats };
+
+        document.getElementById('visualChartTitle').textContent = `${groupName} — Metric Analysis Charts`;
+        document.getElementById('groupStatsVisualization').style.display = 'block';
+        document.getElementById('exportReportBtn').style.display = 'inline-block';
+        
+        // MODIFIED: Hide the groups container list when visual view targets are active
+        document.getElementById('groupsList').style.display = 'none';
+
+        const ctx = document.getElementById('adminMetricsChart').getContext('2d');
+        if (activeChartInstance) { activeChartInstance.destroy(); }
+
+        activeChartInstance = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: ['Members Count', 'Topics', 'Published Posts', 'Internal Replies', 'Active Users'],
+                datasets: [{
+                    label: `Live Aggregation Stream for ${groupName}`,
+                    data: [
+                        stats.members_count ?? stats.total_users ?? 0,
+                        stats.topics_count ?? stats.total_topics ?? 0,
+                        stats.posts_count ?? stats.total_posts ?? 0,
+                        stats.replies_count ?? stats.total_replies ?? 0,
+                        stats.active_contributors ?? stats.active_users_last_7_days ?? 0
+                    ],
+                    backgroundColor: [
+                        'rgb(54, 126, 235)',
+                        'rgba(75, 192, 192, 0.6)',
+                        'rgba(255, 206, 86, 0.6)',
+                        
+                        'rgba(255, 64, 223, 0.6)',
+                        'rgba(153, 102, 255, 0.6)'
+                    ],
+                    borderColor: [
+                        'rgb(54, 126, 235)',
+                        'rgba(75, 192, 192, 1)',
+                        'rgba(255, 206, 86, 1)',
+                        
+                        'rgba(255, 64, 223, 0.6)',
+                        'rgba(153, 102, 255, 1)'
+                    ],
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: { y: { beginAtZero: true } }
+            }
+        });
+
+        document.getElementById('panel-groups').scrollIntoView({ behavior: 'smooth' });
+    }
+
+    // Step 5 UI Visibility Management Addition
+    function closeGroupStatsView() {
+        document.getElementById('groupStatsVisualization').style.display = 'none';
+        document.getElementById('exportReportBtn').style.display = 'none';
+        
+        // MODIFIED: Make the main groups card directory visible again when closing chart layouts
+        document.getElementById('groupsList').style.display = 'block';
+
+        if (activeChartInstance) {
+            activeChartInstance.destroy();
+            activeChartInstance = null;
+        }
+    }
+
+    // Step 6 Added Hook: Performs a seamless local raw compilation file save 
+    function exportAnalyticsReport() {
+        if (!currentSelectedGroupData) {
+            alert("No data snapshot active to download at this time.");
+            return;
+        }
+
+        const dataLayout = {
+            report_profile: "Physical Document Analytics Summary Report",
+            saved_at: new Date().toLocaleString(),
+            payload: currentSelectedGroupData
+        };
+
+        const convertedData = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(dataLayout, null, 4));
+        const dummyNode = document.createElement('a');
+        dummyNode.setAttribute("href", convertedData);
+        dummyNode.setAttribute("download", `group_${currentSelectedGroupData.group_id}_analytics_report.json`);
+        document.body.appendChild(dummyNode);
+        dummyNode.click();
+        dummyNode.remove();
+    }
+
+  
     async function loadWarningsAndFlags() {
-        // Independent try/catches: if one endpoint fails, the other still
-        // renders instead of the whole panel silently going blank (a
-        // regression from merging these into one function — the original
-        // two-function version ran them independently).
+       
         let warnings = [];
         try {
             // Matches GET /moderation/warnings in routes/api.php
@@ -337,6 +445,11 @@
         loadGroups();
         loadWarningsAndFlags();
         loadBlacklists();
+
+       
+        setInterval(() => {
+            loadSystemStats();
+        }, 20000);
     }
 
     init();
