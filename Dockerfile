@@ -29,6 +29,22 @@ RUN chown -R www-data:www-data storage bootstrap/cache \
 ENV COMPOSER_ALLOW_SUPERUSER=1
 RUN composer install --no-interaction --optimize-autoloader --no-dev
 
+# =========================================================
+# 1. Accept Build Arguments from Railway
+# =========================================================
+ARG VITE_REVERB_APP_KEY
+ARG VITE_REVERB_HOST
+ARG VITE_REVERB_PORT
+ARG VITE_REVERB_SCHEME
+
+# =========================================================
+# 2. Expose them to Node/Vite during "npm run build"
+# =========================================================
+ENV VITE_REVERB_APP_KEY=$VITE_REVERB_APP_KEY
+ENV VITE_REVERB_HOST=$VITE_REVERB_HOST
+ENV VITE_REVERB_PORT=$VITE_REVERB_PORT
+ENV VITE_REVERB_SCHEME=$VITE_REVERB_SCHEME
+
 RUN npm ci && npm run build
 
 EXPOSE 8080
