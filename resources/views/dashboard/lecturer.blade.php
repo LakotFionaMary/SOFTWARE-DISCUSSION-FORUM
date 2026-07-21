@@ -1013,7 +1013,9 @@
             if (moreBtn) moreBtn.style.display = 'none';
             return;
         }
-        const items = (data && (data.data || data)) || [];
+
+        // Safely evaluate items to avoid crashes if response is an error object
+        const items = Array.isArray(data) ? data : ((data && data.data && Array.isArray(data.data)) ? data.data : []);
 
         const rowsHtml = items.map(t => `
             <div class="topic-item" data-topic-id="${t.topic_id}" onclick="openTopicPosts(${t.topic_id}, '${escAttr(t.title)}')">
@@ -1040,7 +1042,10 @@
         const select = document.getElementById('browseCategoryFilter');
         if (!select) return;
 
-        const cats = await api(`/groups/${activeBrowseGroupId}/topics/categories`) || [];
+        const res = await api(`/groups/${activeBrowseGroupId}/topics/categories`);
+        // Safely fallback to an empty array if res is an object or error
+        const cats = Array.isArray(res) ? res : ((res && res.data && Array.isArray(res.data)) ? res.data : []);
+
         const previousValue = select.value;
         select.innerHTML = '<option value="">All categories</option>' +
             cats.map(c => `<option value="${c}">${c}</option>`).join('');
@@ -1724,51 +1729,13 @@
         }
     });
 
-    let currentNotifications = [];
-
-async function loadNotifications() {
-    const data = await api('/notifications');
-    currentNotifications = (data && (data.data || data)) || [];
-    renderNotifications();
-}
-
-function renderNotifications() {
-    document.getElementById('notifications').innerHTML = currentNotifications.map((n, i) => {
-        const meta = notifIconMeta(n.type);
-        return `
-            <div class="notif-card${!n.is_read ? ' unread' : ''}" onclick="markOneNotificationRead(${i})">
-                <div class="notif-icon ${meta.cls}">${meta.icon}</div>
-                <div class="notif-body">
-                    <div class="notif-title">${n.type}</div>
-                    <div class="notif-message">${n.message}</div>
-                    <div class="notif-time">${relativeTime(n.created_at)}</div>
-                </div>
-                ${!n.is_read ? '<span class="notif-dot"></span>' : ''}
-            </div>
-        `;
-    }).join('') || '<div class="empty-state">No notifications yet.</div>';
-}
-
-async function markOneNotificationRead(index) {
-    const n = currentNotifications[index];
-    if (!n || n.is_read) return;
-    await api(`/notifications/${n.notification_id}/read`, { method: 'PATCH', body: {} });
-    n.is_read = true;
-    renderNotifications();
-    refreshNotifBadge();
-}
-window.markOneNotificationRead = markOneNotificationRead;
-
-window.prependLiveNotification = function (e) {
-    currentNotifications.unshift({
-        notification_id: e.notification_id,
-        type: e.type,
-        message: e.message,
-        created_at: e.created_at,
-        is_read: false,
-    });
-    renderNotifications();
-};
+    async function loadNotifications() {
+        const data = await api('/notifications');
+        const notifications = (data && (data.data || data)) || [];
+        document.getElementById('notifications').innerHTML = notifications.map(n => `
+            <div style="margin-bottom: 4px;"><strong>${n.type}</strong>: ${n.message}</div>
+        `).join('') || '<div class="empty-state">No notifications yet.</div>';
+    }
 
     async function init() {
         initDashSidebar(document, 'panel-groups');
