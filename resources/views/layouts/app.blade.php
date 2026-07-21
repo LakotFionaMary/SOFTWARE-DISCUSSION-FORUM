@@ -7,7 +7,7 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     
 @vite(['resources/js/app.js'])
- <script src="https://js.pusher.com/8.0.1/pusher.min.js"></script>
+ 
 
     <style>
         :root {
