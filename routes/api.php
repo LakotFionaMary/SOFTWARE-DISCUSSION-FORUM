@@ -67,6 +67,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // -------------------------------------------------------------
     // 5.3 Topic Management and Export Module
     // -------------------------------------------------------------
+    Route::get('/groups/{group}/topics/categories', [TopicController::class, 'categories']);
     Route::get('/topics', [TopicController::class, 'index']);
     Route::get('/groups/{group}/topics', [TopicController::class, 'index'])
         ->middleware('blacklist');
@@ -206,6 +207,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // 5.9 Social Media Sharing Module
     // -------------------------------------------------------------
     Route::post('/posts/{post}/share', [SocialShareController::class, 'store']);
+    Route::post('/replies/{reply}/share', [App\Http\Controllers\Api\SocialShareController::class, 'storeReply']);
 
     // -------------------------------------------------------------
     // 5.10 Notification Module
