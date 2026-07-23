@@ -30,7 +30,8 @@ WORKDIR /app
 COPY . .
 
 # Copy and install Python ML dependencies
-RUN if [ -f requirements.txt ]; then pip3 install --no-cache-dir --break-system-packages -r requirements.txt; fi
+
+RUN if [ -f ml_service/requirements.txt ]; then pip3 install --no-cache-dir --break-system-packages -r ml_service/requirements.txt; fi
 
 RUN mkdir -p storage/framework/cache storage/framework/sessions storage/framework/views storage/app/public
 
