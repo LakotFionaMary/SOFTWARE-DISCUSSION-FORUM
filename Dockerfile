@@ -1,5 +1,6 @@
 FROM php:8.4-fpm-alpine
 
+# Added python3, py3-pip, and C build tools for Pandas/Scikit-Learn
 RUN apk add --no-cache \
     git \
     curl \
@@ -11,6 +12,13 @@ RUN apk add --no-cache \
     unzip \
     nodejs \
     npm \
+    python3 \
+    py3-pip \
+    python3-dev \
+    gcc \
+    g++ \
+    gfortran \
+    openblas-dev \
     && apk add --no-cache --virtual .build-deps $PHPIZE_DEPS \
     && docker-php-ext-configure gd --with-freetype --with-jpeg \
     && docker-php-ext-install pcntl pdo pdo_mysql bcmath gd \
@@ -20,6 +28,9 @@ COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
 WORKDIR /app
 COPY . .
+
+# Copy and install Python ML dependencies
+RUN if [ -f requirements.txt ]; then pip3 install --no-cache-dir --break-system-packages -r requirements.txt; fi
 
 RUN mkdir -p storage/framework/cache storage/framework/sessions storage/framework/views storage/app/public
 
