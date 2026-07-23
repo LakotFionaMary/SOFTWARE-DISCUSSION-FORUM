@@ -146,7 +146,35 @@
         }
         /* Hamburger toggle: only ever shown on mobile (see the 760px query
            below). Hidden here so it takes no space/has no effect on desktop. */
-        .mobile-menu-toggle { display: none; }
+        .mobile-menu-toggle {
+            display: none;
+            flex-shrink: 0;
+            width: 38px; height: 38px;
+            align-items: center; justify-content: center;
+            background: rgba(28,43,51,.06);
+            border: 1px solid transparent;
+            border-radius: 8px;
+            font-size: 18px;
+            color: var(--ink);
+            cursor: pointer;
+            padding: 0;
+            transition: background .15s ease, transform .1s ease;
+        }
+        .mobile-menu-toggle:hover { background: rgba(28,43,51,.1); }
+        .mobile-menu-toggle:active { transform: scale(.94); }
+        /* Dimmed backdrop behind the mobile drawer; click to dismiss */
+        .sidebar-overlay {
+            display: none;
+            position: fixed; inset: 0;
+            background: rgba(15,22,26,.45);
+            z-index: 90;
+            opacity: 0;
+            transition: opacity .2s ease;
+        }
+        .sidebar-overlay.show { display: block; opacity: 1; }
+        /* Small header inside the sidebar, mobile-only: repeats the brand
+           and gives an explicit close (✕) affordance for the drawer. */
+        .app-sidebar-mobile-header { display: none; }
         .app-nav { display: flex; flex-direction: column; padding: 18px 10px 4px; overflow-y: auto; flex: 1; }
         .app-nav-section {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
@@ -229,14 +257,55 @@
             min-height: calc(100vh - 65px);
         }
         @media (max-width: 760px) {
+            .mobile-menu-toggle { display: inline-flex; }
             .app-shell { flex-direction: column; }
-            .app-sidebar { width: 100%; height: auto; position: static; flex-direction: row; align-items: center; }
-            .app-nav { flex-direction: row; overflow-x: auto; padding: 0 6px; }
-            .app-nav-section { display: none; }
-            .app-nav-item { padding: 10px 12px; flex-shrink: 0; }
+            /* The sidebar becomes a fixed-position drawer that slides in
+               from the left over the content, rather than squeezing into
+               the page as a horizontal strip. Closed by default. */
+            .app-sidebar {
+                position: fixed;
+                top: 0; left: 0;
+                width: 82%;
+                max-width: 300px;
+                height: 100vh;
+                flex-direction: column;
+                align-items: stretch;
+                z-index: 100;
+                transform: translateX(-100%);
+                transition: transform .25s ease;
+                box-shadow: 4px 0 28px rgba(0,0,0,.28);
+            }
+            .app-sidebar.mobile-open { transform: translateX(0); }
+            .app-sidebar-mobile-header {
+                display: flex; align-items: center; justify-content: space-between;
+                gap: 10px;
+                padding: 16px 16px 14px;
+                border-bottom: 1px solid rgba(255,255,255,.12);
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+                font-weight: 800; letter-spacing: .03em; text-transform: uppercase;
+                font-size: 14px;
+                color: var(--paper);
+            }
+            .app-sidebar-mobile-header .close-btn {
+                width: 30px; height: 30px;
+                display: inline-flex; align-items: center; justify-content: center;
+                background: rgba(255,255,255,.08);
+                border: none; border-radius: 7px;
+                color: var(--paper);
+                font-size: 15px;
+                cursor: pointer;
+                opacity: .8;
+                transition: opacity .15s ease, background .15s ease;
+            }
+            .app-sidebar-mobile-header .close-btn:hover { opacity: 1; background: rgba(255,255,255,.16); }
+            .app-nav { flex-direction: column; overflow-x: visible; overflow-y: auto; padding: 10px 10px 4px; }
+            .app-nav-section { display: block; }
+            .app-nav-item { padding: 11px 12px; flex-shrink: 0; }
             .app-nav-item:hover { transform: none; }
-            .app-nav-item.active::before { left: 50%; top: auto; bottom: 0; transform: translateX(-50%); width: 18px; height: 3px; border-radius: 3px 3px 0 0; }
-            .app-sidebar-footer { border-top: none; padding: 10px 14px; }
+            /* Keep the vertical accent bar (desktop style) rather than the
+               old bottom-edge bar, since the drawer is vertical again. */
+            .app-nav-item.active::before { left: -10px; top: 50%; bottom: auto; transform: translateY(-50%); width: 3px; height: 18px; border-radius: 0 3px 3px 0; }
+            .app-sidebar-footer { border-top: 1px solid rgba(255,255,255,.12); padding: 14px 16px; }
         }
         /* Auth pages (login/register/rules) render full-bleed, no sidebar */
         body.auth-page .app-topbar { display: none; }
@@ -405,11 +474,23 @@
         $onAdminDash = request()->is('dashboard/admin');
     @endphp
     <div class="app-topbar">
-        <div class="app-topbar-brand"><span class="app-topbar-brand-icon">🚀</span> Smart Discussion Forum</div>
+        <button type="button" class="mobile-menu-toggle" id="mobileMenuToggle" aria-label="Open menu" aria-expanded="false" aria-controls="appSidebar">☰</button>
+        <div class="app-topbar-brand"><span class="app-topbar-brand-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="size-6">
+  <path d="M11.7 2.805a.75.75 0 0 1 .6 0A60.65 60.65 0 0 1 22.83 8.72a.75.75 0 0 1-.231 1.337 49.948 49.948 0 0 0-9.902 3.912l-.003.002c-.114.06-.227.119-.34.18a.75.75 0 0 1-.707 0A50.88 50.88 0 0 0 7.5 12.173v-.224c0-.131.067-.248.172-.311a54.615 54.615 0 0 1 4.653-2.52.75.75 0 0 0-.65-1.352 56.123 56.123 0 0 0-4.78 2.589 1.858 1.858 0 0 0-.859 1.228 49.803 49.803 0 0 0-4.634-1.527.75.75 0 0 1-.231-1.337A60.653 60.653 0 0 1 11.7 2.805Z" />
+  <path d="M13.06 15.473a48.45 48.45 0 0 1 7.666-3.282c.134 1.414.22 2.843.255 4.284a.75.75 0 0 1-.46.711 47.87 47.87 0 0 0-8.105 4.342.75.75 0 0 1-.832 0 47.87 47.87 0 0 0-8.104-4.342.75.75 0 0 1-.461-.71c.035-1.442.121-2.87.255-4.286.921.304 1.83.634 2.726.99v1.27a1.5 1.5 0 0 0-.14 2.508c-.09.38-.222.753-.397 1.11.452.213.901.434 1.346.66a6.727 6.727 0 0 0 .551-1.607 1.5 1.5 0 0 0 .14-2.67v-.645a48.549 48.549 0 0 1 3.44 1.667 2.25 2.25 0 0 0 2.12 0Z" />
+  <path d="M4.462 19.462c.42-.419.753-.89 1-1.395.453.214.902.435 1.347.662a6.742 6.742 0 0 1-1.286 1.794.75.75 0 0 1-1.06-1.06Z" />
+</svg>
+        </span> Smart Discussion Forum</div>
         <div class="app-topbar-welcome" id="topbarWelcome">&nbsp;</div>
     </div>
     <div class="app-shell">
-        <aside class="app-sidebar">
+        <div class="sidebar-overlay" id="sidebarOverlay"></div>
+        <aside class="app-sidebar" id="appSidebar">
+            <div class="app-sidebar-mobile-header">
+                Menu
+                <button type="button" class="close-btn" id="sidebarCloseBtn" aria-label="Close menu">✕</button>
+            </div>
             <nav class="app-nav">
                 <div class="app-nav-section">Workspace</div>
                 <a href="/dashboard?panel=panel-groups" data-dash-panel="panel-groups" data-role="student,lecturer,administrator" class="app-nav-item {{ ($onDashboard && !$onAdminDash && ($panel === 'panel-groups' || !$panel)) || ($onAdminDash && $panel === 'panel-groups') ? 'active' : '' }}">
@@ -571,22 +652,41 @@ function initNotificationChannel() {
             console.error('Notification channel subscription error:', error);
         });
 }
-        // Mobile hamburger menu: nav sits collapsed in normal document flow
-        // (see the 760px query) and this just toggles it open/closed. No-op
-        // on desktop since the button is display:none there.
-        document.getElementById('mobileMenuToggle')?.addEventListener('click', () => {
-            const nav = document.querySelector('.app-nav');
-            const btn = document.getElementById('mobileMenuToggle');
-            if (!nav || !btn) return;
-            const isOpen = nav.classList.toggle('mobile-open');
-            btn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
-        });
-        document.querySelectorAll('.app-nav-item').forEach(item => {
-            item.addEventListener('click', () => {
-                document.querySelector('.app-nav')?.classList.remove('mobile-open');
-                document.getElementById('mobileMenuToggle')?.setAttribute('aria-expanded', 'false');
+        // Mobile hamburger menu: the sidebar itself becomes a fixed drawer
+        // (see the 760px query) that slides in over the content, with a
+        // dimmed overlay behind it. No-op on desktop since the toggle
+        // button is display:none there.
+        (function () {
+            const toggleBtn = document.getElementById('mobileMenuToggle');
+            const closeBtn = document.getElementById('sidebarCloseBtn');
+            const sidebar = document.getElementById('appSidebar');
+            const overlay = document.getElementById('sidebarOverlay');
+            if (!sidebar || !overlay) return;
+
+            function openSidebar() {
+                sidebar.classList.add('mobile-open');
+                overlay.classList.add('show');
+                toggleBtn?.setAttribute('aria-expanded', 'true');
+                document.body.style.overflow = 'hidden';
+            }
+            function closeSidebar() {
+                sidebar.classList.remove('mobile-open');
+                overlay.classList.remove('show');
+                toggleBtn?.setAttribute('aria-expanded', 'false');
+                document.body.style.overflow = '';
+            }
+            toggleBtn?.addEventListener('click', () => {
+                sidebar.classList.contains('mobile-open') ? closeSidebar() : openSidebar();
             });
-        });
+            closeBtn?.addEventListener('click', closeSidebar);
+            overlay.addEventListener('click', closeSidebar);
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape') closeSidebar();
+            });
+            document.querySelectorAll('.app-nav-item').forEach(item => {
+                item.addEventListener('click', closeSidebar);
+            });
+        })();
 
         document.getElementById('logoutLink')?.addEventListener('click', async (e) => {
             e.preventDefault();
@@ -594,6 +694,8 @@ function initNotificationChannel() {
             localStorage.removeItem('sdf_token');
             window.location = '/';
         });
+
+        
 
         // Shared current-user/role lookup. Every dashboard page calls this
         // once on load rather than re-implementing its own /me + role logic.
