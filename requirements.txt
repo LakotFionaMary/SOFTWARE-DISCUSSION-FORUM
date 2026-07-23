@@ -1,7 +1,0 @@
-pusher
-flask
-scikit-learn
-pandas
-joblib
-kaggle
-python-dotenv
