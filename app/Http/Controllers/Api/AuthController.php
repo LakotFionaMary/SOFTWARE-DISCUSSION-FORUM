@@ -63,9 +63,22 @@ class AuthController extends Controller
 
         $token = $user->createToken('auth_token')->plainTextToken;
 
+        // Flatten the role relation into a direct string for desktop client parsing compatibility
+        $userPayload = $user->fresh('roles')->toArray();
+        
+        // Prioritize the highest role out of all assigned relation models
+        $roleNames = $user->roles->pluck('role_name')->toArray();
+        if (in_array('Administrator', $roleNames)) {
+            $userPayload['role'] = 'Administrator';
+        } elseif (in_array('Lecturer', $roleNames)) {
+            $userPayload['role'] = 'Lecturer';
+        } else {
+            $userPayload['role'] = 'Student';
+        }
+
         return response()->json([
             'message' => 'Account created successfully.',
-            'user' => $user->fresh('roles'),
+            'user' => $userPayload,
             'token' => $token,
         ], 201);
     }
@@ -107,8 +120,21 @@ class AuthController extends Controller
 
         $token = $user->createToken('auth_token')->plainTextToken;
 
+        // Flatten the role relation into a direct string for desktop client parsing compatibility
+        $userPayload = $user->load('roles')->toArray();
+        
+        // Prioritize the highest role out of all assigned relation models
+        $roleNames = $user->roles->pluck('role_name')->toArray();
+        if (in_array('Administrator', $roleNames)) {
+            $userPayload['role'] = 'Administrator';
+        } elseif (in_array('Lecturer', $roleNames)) {
+            $userPayload['role'] = 'Lecturer';
+        } else {
+            $userPayload['role'] = 'Student';
+        }
+
         return response()->json([
-            'user' => $user->load('roles'),
+            'user' => $userPayload,
             'token' => $token,
         ]);
     }
@@ -123,6 +149,19 @@ class AuthController extends Controller
 
     public function me(Request $request)
     {
-        return response()->json($request->user()->load('roles'));
+        $user = $request->user()->load('roles');
+        $userPayload = $user->toArray();
+        
+        // Prioritize the highest role out of all assigned relation models
+        $roleNames = $user->roles->pluck('role_name')->toArray();
+        if (in_array('Administrator', $roleNames)) {
+            $userPayload['role'] = 'Administrator';
+        } elseif (in_array('Lecturer', $roleNames)) {
+            $userPayload['role'] = 'Lecturer';
+        } else {
+            $userPayload['role'] = 'Student';
+        }
+        
+        return response()->json($userPayload);
     }
 }
