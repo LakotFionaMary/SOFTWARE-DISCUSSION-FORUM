@@ -42,6 +42,12 @@
         background-color: #144733;
     }
 
+    /* ---------- Groups panel header (mirrors the student dashboard) ---------- */
+    .groups-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+    .groups-header h2 { margin: 0; }
+    .groups-list { display: flex; flex-direction: column; }
+
+    
     .groups-list {
         display: flex;
         flex-direction: column;
@@ -167,6 +173,23 @@
         padding: 4px 10px; border-radius: 12px;
     }
 
+    /* ---------- Create-group modal (mirrors the student dashboard) ---------- */
+    .create-group-modal-overlay {
+        position: fixed; inset: 0; background: rgba(15, 23, 20, 0.45);
+        display: none; align-items: center; justify-content: center; z-index: 1000; padding: 16px;
+    }
+    .create-group-modal-overlay.open { display: flex; }
+    .create-group-modal-box {
+        background: #fff; border-radius: var(--radius); padding: 20px;
+        width: 100%; max-width: 420px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); position: relative;
+    }
+    .create-group-modal-box .close-modal-btn {
+        position: absolute; top: 12px; right: 16px; font-size: 22px; cursor: pointer; color: #666; line-height: 1;
+    }
+
+    /* Chat thread + composer, reused from the standalone topic page so the
+       inline preview here looks/feels the same. No fixed height/scrolling —
+       it simply grows with the conversation. */
     /* Chat thread + composer */
     .chat-thread {
         display: flex; flex-direction: column; gap: 4px;
@@ -282,6 +305,10 @@
     <div class="dash-main">
         <!-- ================= MY GROUPS ================= -->
         <div class="dash-panel" id="panel-groups">
+            
+            <p class="muted">Groups you own or administer. Statistics and the gradebook are only available for groups where you're the lecturer or an active group admin.</p>
+
+            
             <div class="card" id="groupsBrowserContent" style="margin-top: 14px;">Loading your groups…</div>
         </div>
 
@@ -433,6 +460,28 @@
         </div>
     </div>
 </div>
+
+<!-- ================= Create Group modal (mirrors the student dashboard) ================= -->
+<div class="create-group-modal-overlay" id="createGroupModalOverlay" onclick="closeCreateGroupModalOnOuterClick(event)">
+    <div class="create-group-modal-box" onclick="event.stopPropagation();">
+        <span class="close-modal-btn" onclick="closeCreateGroupModal()">&times;</span>
+        <h3 style="margin-top:0; margin-bottom:16px;">Create a new group</h3>
+        <form id="createGroupForm">
+            <div style="margin-bottom: 12px;">
+                <label style="display:block; margin-bottom:6px; font-weight:600; font-size:14px;">Group Name</label>
+                <input type="text" id="groupName" placeholder="Group name (e.g. CS301 Databases)" required style="width:100%; padding:8px; box-sizing:border-box;">
+            </div>
+            <div style="margin-bottom: 16px;">
+                <label style="display:block; margin-bottom:6px; font-weight:600; font-size:14px;">Description</label>
+                <textarea id="groupDescription" placeholder="What is this group for?" rows="3" style="width:100%; padding:8px; box-sizing:border-box; resize:vertical;"></textarea>
+            </div>
+            <div style="display:flex; justify-content:flex-end; gap:8px;">
+                <button type="button" class="btn btn-secondary" onclick="closeCreateGroupModal()" style="padding: 8px 16px;">Cancel</button>
+                <button type="submit" class="btn" style="padding: 8px 16px;">Create group</button>
+            </div>
+        </form>
+    </div>
+</div>
 @endsection
 
 @section('scripts')
@@ -440,6 +489,38 @@
     if (!localStorage.getItem('sdf_token')) { window.location.href = '/'; }
 
     let myGroups = [];
+
+    function handleIncomingShareLink() {
+    const params = new URLSearchParams(window.location.search);
+    const groupId = params.get('group_id');
+    const topicId = params.get('topic_id');
+    const postId = params.get('post_id');
+
+    if (!groupId || !topicId) return; // not a shared-link visit, nothing to do
+
+    const groupName = params.get('group_name') ? decodeURIComponent(params.get('group_name')) : '';
+    const topicTitle = params.get('topic_title') ? decodeURIComponent(params.get('topic_title')) : '';
+
+    // Drive the same functions a real click on the group/topic would call.
+    openGroupTopics(Number(groupId), groupName);
+    openTopicPosts(Number(topicId), topicTitle);
+
+    // Once posts load, scroll to and briefly highlight the specific post.
+    if (postId) {
+        setTimeout(() => {
+            const el = document.getElementById('post-' + postId);
+            if (el) {
+                el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                el.style.outline = '2px solid var(--accent)';
+                setTimeout(() => { el.style.outline = ''; }, 2000);
+            }
+        }, 800); // give loadBrowsePosts() time to finish its API call + render
+    }
+
+    // Clean the URL so refreshing doesn't re-trigger this / doesn't look odd.
+    window.history.replaceState({}, '', '/dashboard/student');
+}
+
 
     async function loadWelcome() {
         const me = await loadCurrentUser();
@@ -459,15 +540,17 @@
     let activeBrowseGroupName = '';
     let activeBrowseTopicId = null;
     let activeBrowseTopicTitle = '';
-    let currentTopicMessages = [];
-
+    let currentTopicMessages = []; // index -> {author, content, postId, isReply, flagged}, used by Forward + Flag
+     /**********adddedd**************** */
     let groupMembersExpanded = false;
-    let allGroupMembers = [];
+    let allGroupMembers = []; 
 
-    let browseTopicsPage = 1;
+  let browseTopicsPage = 1;
     let browseTopicsSearch = '';
     let browseTopicsCategory = '';
+   
 
+     
     function timeOnly(dt) {
         if (!dt) return '';
         return new Date(dt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -569,6 +652,19 @@
                 console.error("Presence channel subscription error:", error);
             });
     };
+ 
+    async function loadWelcome() {
+        const me = await loadCurrentUser();
+        if (!me) return;
+        if (window.CURRENT_ROLE === 'student') {
+            window.location.replace('/dashboard/student' + window.location.search);
+            return;
+        }
+        if (window.CURRENT_ROLE === 'administrator') {
+            window.location.replace('/dashboard/admin' + window.location.search);
+            return;
+        }
+    }
 
     async function loadGroups() {
         const data = await api('/groups');
@@ -790,6 +886,7 @@
         ${groupMembersModalHtml()}
         `;
     }
+
 
     function postsViewHtml() {
         return `
@@ -1013,9 +1110,7 @@
             if (moreBtn) moreBtn.style.display = 'none';
             return;
         }
-
-        // Safely evaluate items to avoid crashes if response is an error object
-        const items = Array.isArray(data) ? data : ((data && data.data && Array.isArray(data.data)) ? data.data : []);
+        const items = (data && (data.data || data)) || [];
 
         const rowsHtml = items.map(t => `
             <div class="topic-item" data-topic-id="${t.topic_id}" onclick="openTopicPosts(${t.topic_id}, '${escAttr(t.title)}')">
@@ -1042,10 +1137,7 @@
         const select = document.getElementById('browseCategoryFilter');
         if (!select) return;
 
-        const res = await api(`/groups/${activeBrowseGroupId}/topics/categories`);
-        // Safely fallback to an empty array if res is an object or error
-        const cats = Array.isArray(res) ? res : ((res && res.data && Array.isArray(res.data)) ? res.data : []);
-
+        const cats = await api(`/groups/${activeBrowseGroupId}/topics/categories`) || [];
         const previousValue = select.value;
         select.innerHTML = '<option value="">All categories</option>' +
             cats.map(c => `<option value="${c}">${c}</option>`).join('');
@@ -1066,9 +1158,16 @@
             return;
         }
 
+        // Ensure composer form visibility if accessible
+        const composer = document.getElementById('dashComposerForm');
+        if (composer) composer.style.display = 'flex';
+
         const myId = window.CURRENT_USER ? window.CURRENT_USER.user_id : null;
         const posts = t.posts || [];
 
+        // Reset the lookup table that Forward/Flag use to find a message's
+        // full content + id by index, without stuffing raw/quoted text into
+        // onclick attrs.
         currentTopicMessages = [];
 
         container.innerHTML = posts.map(p => {
@@ -1288,24 +1387,29 @@
     window.closeForwardModal = closeForwardModal;
 
     async function shareToPlatform(platform) {
-        if (forwardMessageIndex === null) return;
-        const msg = currentTopicMessages[forwardMessageIndex];
+    if (forwardMessageIndex === null) return;
+    const msg = currentTopicMessages[forwardMessageIndex];
 
-        const postId = msg.postId || activeBrowseTopicId;
+    const postId = msg.postId || activeBrowseTopicId;
+    const endpoint = msg.isReply ? `/replies/${postId}/share` : `/posts/${postId}/share`;
 
-        try {
-            const response = await api(`/posts/${postId}/share`, {
-                method: 'POST',
-                body: { platform: platform }
-            });
+    try {
+        const response = await api(endpoint, {
+            method: 'POST',
+            body: { platform: platform }
+        });
 
-            if (response && response.error) {
-                alert(response.error);
-                return;
-            }
+        if (response && response.error) {
+            alert(response.error);
+            return;
+        }
+        if (!response || !response.shared_url) {
+            alert('Could not generate a share link for this post. Please try again.');
+            return;
+        }
 
-            const shareUrl = response.url;
-            const textToShare = `Check out this post on the Student Discussion Forum:\n"${msg.content.substring(0, 100)}..."\nRead more here: ${shareUrl}`;
+        const shareUrl = response.shared_url;
+        const textToShare = `Check out this post on the Student Discussion Forum:\n"${msg.content.substring(0, 100)}..."\nRead more here: ${shareUrl}`;
 
             let targetUrl = '';
             switch(platform) {
@@ -1729,20 +1833,59 @@
         }
     });
 
-    async function loadNotifications() {
-        const data = await api('/notifications');
-        const notifications = (data && (data.data || data)) || [];
-        document.getElementById('notifications').innerHTML = notifications.map(n => `
-            <div style="margin-bottom: 4px;"><strong>${n.type}</strong>: ${n.message}</div>
-        `).join('') || '<div class="empty-state">No notifications yet.</div>';
-    }
+    let currentNotifications = [];
 
+async function loadNotifications() {
+    const data = await api('/notifications');
+    currentNotifications = (data && (data.data || data)) || [];
+    renderNotifications();
+}
+
+function renderNotifications() {
+    document.getElementById('notifications').innerHTML = currentNotifications.map((n, i) => {
+        const meta = notifIconMeta(n.type);
+        return `
+            <div class="notif-card${!n.is_read ? ' unread' : ''}" onclick="markOneNotificationRead(${i})">
+                <div class="notif-icon ${meta.cls}">${meta.icon}</div>
+                <div class="notif-body">
+                    <div class="notif-title">${n.type}</div>
+                    <div class="notif-message">${n.message}</div>
+                    <div class="notif-time">${relativeTime(n.created_at)}</div>
+                </div>
+                ${!n.is_read ? '<span class="notif-dot"></span>' : ''}
+            </div>
+        `;
+    }).join('') || '<div class="empty-state">No notifications yet.</div>';
+}
+
+async function markOneNotificationRead(index) {
+    const n = currentNotifications[index];
+    if (!n || n.is_read) return;
+    await api(`/notifications/${n.notification_id}/read`, { method: 'PATCH', body: {} });
+    n.is_read = true;
+    renderNotifications();
+    refreshNotifBadge();
+}
+window.markOneNotificationRead = markOneNotificationRead;
+
+window.prependLiveNotification = function (e) {
+    currentNotifications.unshift({
+        notification_id: e.notification_id,
+        type: e.type,
+        message: e.message,
+        created_at: e.created_at,
+        is_read: false,
+    });
+    renderNotifications();
+};
     async function init() {
         initDashSidebar(document, 'panel-groups');
         await loadWelcome();
         await loadGroups();
         loadLecturerQuizzes();
         loadNotifications();
+        handleIncomingShareLink(); // <-- add this, after loadGroups() so myGroups is populated
+
     }
 
     init();
