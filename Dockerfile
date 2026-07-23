@@ -61,4 +61,4 @@ RUN npm ci && npm run build
 
 EXPOSE 8080
 
-CMD ["sh", "-c", "php artisan config:clear && php artisan cache:clear && php artisan serve --host=0.0.0.0 --port=${PORT:-8080}"]
+CMD ["sh", "-c", "python3 ml_service/app.py & php artisan config:clear && php artisan cache:clear && php artisan serve --host=0.0.0.0 --port=${PORT:-8080}"]
