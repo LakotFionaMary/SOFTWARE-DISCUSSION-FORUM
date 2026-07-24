@@ -12,7 +12,11 @@ use Illuminate\Support\Facades\Route;
 | mirror the app's structure so a given feature's route/view pair is easy
 | to find.
 */
+Route::get('/share/{post}', [App\Http\Controllers\Api\PublicShareController::class, 'show'])
+    ->name('share.post');
 
+Route::get('/share/reply/{reply}', [App\Http\Controllers\Api\PublicShareController::class, 'showReply'])
+    ->name('share.reply');
 // ---------------------------------------------------------------------
 // Public: auth & onboarding
 // ---------------------------------------------------------------------
