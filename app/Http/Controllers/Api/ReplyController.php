@@ -59,7 +59,7 @@ class ReplyController extends Controller
         // Real-time push is a nice-to-have; it must not take the whole
         // request down when Reverb isn't running (see PostController::store()).
         try {
-            event(new MessageBroadcast($reply, $post->topic_id));
+            event(new MessageBroadcast($post->topic_id, $reply));
         } catch (\Throwable $e) {
             report($e);
         }
