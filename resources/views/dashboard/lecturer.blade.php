@@ -195,6 +195,7 @@
         display: flex; flex-direction: column; gap: 4px;
         background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius);
         padding: 16px; min-height: 260px; flex: 1;
+         overflow-y: auto;
     }
     .msg-group { display: flex; flex-direction: column; margin: 10px 0; max-width: 78%; }
     .msg-group.mine { align-self: flex-end; align-items: flex-end; }
@@ -685,16 +686,124 @@
         });
     }
 
-    async function joinGroupInline(event, groupId) {
+   async function joinGroupInline(event, groupId) {
         event.stopPropagation();
-        const res = await api(`/groups/${groupId}/join`, { method: 'POST' });
-        if (res && (res.message || res.status === 'success' || !res.error)) {
-            await loadGroups();
-        } else {
-            alert(res?.error || res?.message || 'Could not join this group.');
-        }
+        const ok = window.confirm('By joining, you agree to the group rules (see /group-rules). Continue?');
+        if (!ok) return;
+        const res = await api(`/groups/${groupId}/join`, { method: 'POST', body: { rules_accepted: true } });
+        if (res && res.message) alert(res.message);
+        await loadGroups();
     }
     window.joinGroupInline = joinGroupInline;
+
+    function renderGroupAdminPanel(groups) {
+        const adminGroups = groups.filter(g =>g.admin_id == window.CURRENT_USER.user_id);
+        const tab = document.getElementById('navGroupAdmin');
+
+        if (tab) tab.style.display = adminGroups.length ? 'flex' : 'none';
+
+        document.getElementById('groupAdminList').innerHTML = adminGroups.map(g => `
+           <div class="card" style="padding: 16px;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <strong style="font-size: 16px; display: block; margin-bottom: 4px;">${g.name}</strong>
+                    <div class="muted">${g.members_count ?? 0} members · ${g.topics_count ?? 0} topics</div>
+                </div>
+                <div style="display: flex; gap: 8px;">
+                    <a class="btn btn-secondary" href="/groups/${g.group_id}/statistics" style="padding: 6px 12px; font-size: 13px; white-space: nowrap;">
+                        View group statistics
+                    </a>
+                </div>
+            </div>
+            <div id="joinRequests-${g.group_id}" class="muted" style="margin-top:12px; font-size:13px;">Loading join requests…</div>
+           </div>
+        `).join('');
+
+        adminGroups.forEach(g => loadJoinRequests(g.group_id));
+    }
+
+       
+
+    // A small fixed palette of gradient pairs so each requester's avatar
+    // gets a distinct, cheerful color instead of every avatar looking the
+    // same — picked deterministically from their name so it's stable
+    // across re-renders, not random each time.
+    const AVATAR_GRADIENTS = [
+        ['#0d9488', '#6366f1'], // teal -> indigo
+        ['#ec4899', '#f59e0b'], // pink -> amber
+        ['#6366f1', '#ec4899'], // indigo -> pink
+        ['#f97316', '#ec4899'], // orange -> pink
+        ['#0d9488', '#f59e0b'], // teal -> amber
+    ];
+
+    function gradientForName(name) {
+        let hash = 0;
+        for (let i = 0; i < name.length; i++) hash = (hash * 31 + name.charCodeAt(i)) >>> 0;
+        const [from, to] = AVATAR_GRADIENTS[hash % AVATAR_GRADIENTS.length];
+        return `linear-gradient(135deg, ${from}, ${to})`;
+    }
+
+    function initialsFor(name) {
+        const parts = name.trim().split(/\s+/);
+        return ((parts[0]?.[0] || '') + (parts[1]?.[0] || '')).toUpperCase() || '?';
+    }
+
+    async function loadJoinRequests(groupId, groupName) {
+        const el = document.getElementById(`joinRequests-${groupId}`);
+        if (!el) return;
+        const requests = await api(`/groups/${groupId}/join-requests`) || [];
+
+        if (!requests.length) {
+            el.innerHTML = `
+                <div style="display:flex; align-items:center; gap:8px; padding:10px 0; color:var(--slate); font-size:13px;">
+                    <span style="font-size:16px;">✅</span> No pending join requests right now.
+                </div>`;
+            return;
+        }
+
+        el.innerHTML = `
+            <div style="font-weight:700; font-size:13px; color:var(--slate); margin:10px 0 8px; display:flex; align-items:center; gap:6px;">
+                <span style="background: var(--gradient-brand); color:#fff; border-radius:999px; padding:2px 10px; font-size:12px;">${requests.length}</span>
+                Pending join request${requests.length === 1 ? '' : 's'}
+            </div>
+            <div style="display:flex; flex-direction:column; gap:10px;">
+                ${requests.map(r => {
+                    const name = r.user ? (r.user.full_name || r.user.name) : 'Unknown user';
+                    return `
+                    <div style="display:flex; align-items:center; justify-content:space-between; gap:12px;
+                                background:#fff; border:1px solid var(--line); border-radius:12px; padding:10px 14px;
+                                box-shadow:0 1px 4px rgba(99,102,241,.06);">
+                        <div style="display:flex; align-items:center; gap:10px; min-width:0;">
+                            <div style="width:36px; height:36px; border-radius:50%; flex-shrink:0;
+                                        background:${gradientForName(name)}; color:#fff; font-weight:700; font-size:13px;
+                                        display:flex; align-items:center; justify-content:center;">
+                                ${initialsFor(name)}
+                            </div>
+                            <div style="min-width:0;">
+                                <div style="font-weight:600; font-size:14px; color:var(--ink); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${name}</div>
+                                <div style="font-size:12px; color:var(--slate);">
+                                    wants to join <span style="color:var(--accent-dark); font-weight:600;">${groupName ?? 'this group'}</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div style="display:flex; gap:6px; flex-shrink:0;">
+                            <button type="button" class="btn" style="padding:6px 14px; font-size:12.5px;"
+                                onclick="resolveJoinRequest(${groupId}, ${r.join_request_id}, 'approve')">✓ Approve</button>
+                            <button type="button" class="btn secondary" style="padding:6px 14px; font-size:12.5px;"
+                                onclick="resolveJoinRequest(${groupId}, ${r.join_request_id}, 'decline')">✕ Decline</button>
+                        </div>
+                    </div>
+                `; }).join('')}
+            </div>
+        `;
+    }
+
+    async function resolveJoinRequest(groupId, requestId, action) {
+        const res = await api(`/groups/${groupId}/join-requests/${requestId}/${action}`, { method: 'POST' });
+        if (res && res.message) alert(res.message);
+        loadJoinRequests(groupId);
+    }
+    window.resolveJoinRequest = resolveJoinRequest;
 
     function showNotMemberNotice(groupId) {
         const notice = document.getElementById(`notMemberNotice-${groupId}`);
@@ -1891,3 +2000,4 @@ window.prependLiveNotification = function (e) {
     init();
 </script>
 @endsection
+
