@@ -57,7 +57,14 @@ class MessagingController extends Controller
 
         // Step 7-8: broadcast to the group channel; excluded members are
         // filtered out inside the broadcast event's broadcastToOthers logic.
-        broadcast(new MessageBroadcast($post))->toOthers();
+        // Wrapped like PostController/ReplyController's broadcasts: this is
+        // a nice-to-have on top of the post above, which is already safely
+        // saved by this point either way.
+        try {
+            broadcast(new MessageBroadcast($post->topic_id, $post))->toOthers();
+        } catch (\Throwable $e) {
+            report($e);
+        }
 
         return response()->json($post->load('author'), 201);
     }
