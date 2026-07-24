@@ -64,6 +64,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/groups/{group}/members', [GroupController::class, 'members'])
         ->middleware('blacklist');
 
+    // Group Join Request approval workflow
+    Route::get('/groups/{group}/join-requests', [GroupController::class, 'joinRequests']);
+    Route::post('/groups/{group}/join-requests/{joinRequest}/approve', [GroupController::class, 'approveJoinRequest']);
+    Route::post('/groups/{group}/join-requests/{joinRequest}/decline', [GroupController::class, 'declineJoinRequest']);
+
     // -------------------------------------------------------------
     // 5.3 Topic Management and Export Module
     // -------------------------------------------------------------
