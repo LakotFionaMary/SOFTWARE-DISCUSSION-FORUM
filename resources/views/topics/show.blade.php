@@ -35,10 +35,10 @@
 @section('scripts')
 @vite(['resources/js/app.js'])
 <script>
-const topicId = {{ $topic }};
-    if (window.Pusher) {
-    window.Pusher = Pusher;
-}
+const topicId = parseInt("{{ $topic }}") || null;
+let currentUserRole = 'Student';
+let currentUserId = null;
+let subscribed = false; // guards against joining/listening more than once
 
 if (typeof window.Echo === 'undefined' || !window.Echo) {
     console.log("Forcing manual, inline configuration for Laravel Echo...");
@@ -49,19 +49,9 @@ if (typeof window.Echo === 'undefined' || !window.Echo) {
         wsPort: 8080,
         forceTLS: false,
         enabledTransports: ['ws', 'wss'],
-        // This forces Echo to immediately start the connection handshakes!
         disableStats: true,
     });
 }
-// Use standard Laravel blade echo if global window var isn't used elsewhere
-//const topicId = parseInt("{{ $topic }}") || null;
-// Change 'const' to 'let' at the top of your script
-let topicId = parseInt("{{ $topic }}") || null; 
-let activeChannelId = topicId; // Track the currently subscribed channel
-
-let activeChannelId = topicId; 
-let currentUserRole = 'Student';
-let currentUserId = null;
 
 /* ---------------- Inline icon library ---------------- */
 const ICONS = {
@@ -101,139 +91,36 @@ async function loadTopic() {
     const postsContainer = document.getElementById('posts');
 
     if (!t || t.message) {
-        if(titleEl) titleEl.textContent = 'Unavailable';
-        if(postsContainer) postsContainer.innerHTML = `<div class="muted">${(t && t.message) || 'This topic could not be loaded.'}</div>`;
+        if (titleEl) titleEl.textContent = 'Unavailable';
+        if (postsContainer) postsContainer.innerHTML = `<div class="muted">${(t && t.message) || 'This topic could not be loaded.'}</div>`;
         return;
     }
 
-    if(titleEl) titleEl.textContent = t.title || "No Title";
-    if(categoryEl) categoryEl.textContent = t.category ?? 'General';
-    
+    if (titleEl) titleEl.textContent = t.title || "No Title";
+    if (categoryEl) categoryEl.textContent = t.category ?? 'General';
+
     renderPosts(t.posts || []);
     if (postsContainer) {
         setTimeout(() => {
             postsContainer.scrollTop = postsContainer.scrollHeight;
         }, 50);
     }
-    // --- ADD THIS HERE ---
-    // Every single time a topic successfully finishes loading,
-    // we must manually trigger the WebSocket subscription!
-    subscribeToTopic();
 }
-
-console.log("TOPIC SCRIPT LOADED");   
-
-
-console.log("TOPIC SCRIPT LOADED");   
-
-    if (typeof window.Echo === 'undefined') {
-    if (!topicId) return;
-        return;
-    }
-
-    console.log("Successfully calling Echo.join for topic:", topicId);
-    
-    try {
-        
-        
-        window.Echo.join(`topic.${topicId}`)
-        
-        
-        window.Echo.join(`topic.${topicId}`)
-            .here((users) => { console.log('Connected to topic! Online users:', users); })
-            .joining((user) => { console.log(user.full_name + ' joined'); })
-            .leaving((user) => { console.log(user.full_name + ' left'); })
-
-                console.log("WebSocket event payload received:", e);
-                if (Array.isArray(e.excluded_user_ids) && e.excluded_user_ids.includes(currentUserId)) {
-
-                    return;
-                }
-
-                    return;
-                }
-
-                // DETECT: Identify if incoming model target is a sub-reply or parent post
-                const isReply = e.reply.hasOwnProperty('post_id') && e.reply.post_id !== null;
-
-                if (isReply) {
-                    // --- CASE A: IT IS A NESTED SUB-REPLY ---
-                    const replyStack = document.getElementById(`reply-stack-${e.reply.post_id}`);
-                    if (replyStack) {
-                        const newReplyHtml = `
-                            <div class="reply-row" id="reply-${e.reply.reply_id}" style="margin-bottom:8px; padding: 6px; background: rgba(0,0,0,0.02); border-radius: 4px;">
-                                <strong>${authorLink(e.reply.author)}</strong>
-                                <span class="muted">${new Date(e.reply.replied_at || e.reply.created_at).toLocaleString()}</span>
-                                ${e.reply.is_flagged ? '<span class="flag" style="color: #dc2626; font-weight: bold;"> · flagged</span>' : ''}
-                                <div>${e.reply.content}</div>
-                            </div>
-                        `;
-                    }
-                } else {
-                        loadTopic();
-                    const postsContainer = document.getElementById('posts');
-                    if (postsContainer) {
-                    // --- CASE B: IT IS A NEW PARENT POST ---
-                    const postsContainer = document.getElementById('posts');
-                    if (postsContainer) {
-                        if (postsContainer.querySelector('.muted') && postsContainer.children.length === 1) {
-                            postsContainer.innerHTML = '';
-                        }
-                        
-                        const targetPostId = e.reply.post_id || e.reply.id;
-                        const newPostHtml = `
-                            <div class="card" id="post-card-${targetPostId}" style="margin-bottom: 24px; padding: 16px;">
-                                <strong>${authorLink(e.reply.author)}</strong>
-                                <span class="muted">${new Date(e.reply.posted_at || e.reply.created_at).toLocaleString()}</span>
-                                ${e.reply.is_flagged ? '<span class="flag" style="color: #dc2626; font-weight: bold;"> · flagged</span>' : ''}
-                                <p style="margin: 12px 0;">${e.reply.content}</p>
-                                <div style="margin-bottom: 12px;">
-                                    <button class="btn secondary" onclick="shareToSocial(${targetPostId}, 'Clipboard')">Forward</button>
-                                    <button class="btn secondary" onclick="flagPost(${targetPostId})">Flag</button>
-                                </div>
-                                <div style="margin-top:10px; padding-left:16px; border-left: 2px solid #d8d2c4;">
-                                    <div id="reply-stack-${targetPostId}"></div>
-                                    <form onsubmit="return submitReply(event, ${targetPostId})" style="margin-top: 12px; display: flex; gap: 8px;">
-                                        <input type="text" id="reply-input-${targetPostId}" placeholder="Reply…" style="flex: 1; padding: 6px;" required>
-                                        <button class="btn secondary" type="submit">Reply</button>
-                                    </form>
-                                </div>
-                            </div>
-                        `;
-                        postsContainer.insertAdjacentHTML('beforeend', newPostHtml);
-                const postsContainer = document.getElementById('posts');
-                if (postsContainer) {
-                    postsContainer.scrollTop = postsContainer.scrollHeight;
-                }
-            });
-            
-    } catch (error) {
-        console.error("Echo join operation failed with error:", error);
-    }
-}
-        console.error("Echo join operation failed with error:", error);
-    }
-}
-
-document.addEventListener('DOMContentLoaded', async () => {
 
 function authorLink(author) {
     if (!author) return 'Unknown';
-
+    return `<a href="#" onclick="viewProfile(${author.user_id}); return false;">${author.full_name || 'Unknown'}</a>`;
 }
 
 function renderPosts(posts) {
     document.getElementById('posts').innerHTML = posts.map(p => `
-
-            <strong>${authorLink(p.author)}</strong>
-            <span class="muted">${new Date(p.posted_at).toLocaleString()}</span>
         <div class="card" id="post-card-${p.post_id}" style="margin-bottom: 24px; padding: 16px;">
             <strong>${authorLink(p.author)}</strong>
             <span class="muted">${new Date(p.posted_at).toLocaleString()}</span>
             ${p.is_flagged ? '<span class="flag" style="color: #dc2626; font-weight: bold;"> · flagged</span>' : ''}
             <p style="margin: 12px 0;">${p.content}</p>
             <div style="margin-bottom: 12px;">
-            <div style="margin-top:10px; padding-left:16px; border-left: 2px solid #d8d2c4;">
+                <button class="btn secondary" onclick="shareToSocial(${p.post_id}, 'Clipboard')">Forward</button>
                 <button class="btn secondary" onclick="flagPost(${p.post_id})">Flag</button>
             </div>
             <div style="margin-top:10px; padding-left:16px; border-left: 2px solid #d8d2c4;">
@@ -246,6 +133,9 @@ function renderPosts(posts) {
                             <div>${r.content}</div>
                         </div>
                     `).join('')}
+                </div>
+                <form onsubmit="return submitReply(event, ${p.post_id})" style="margin-top: 12px; display: flex; gap: 8px;">
+                    <input type="text" id="reply-input-${p.post_id}" placeholder="Reply…" style="flex: 1; padding: 6px;" required>
                     <button class="btn secondary" type="submit">Reply</button>
                 </form>
             </div>
@@ -253,44 +143,113 @@ function renderPosts(posts) {
     `).join('') || '<div class="muted">No posts yet in this topic.</div>';
 }
 
-async function submitReply(e, postId) {
-    e.preventDefault();
+/**
+ * Appends a freshly-broadcast post or reply straight into the DOM instead
+ * of reloading the whole topic - this is what makes new messages from
+ * other people show up instantly (WhatsApp-style) instead of only after
+ * you post something yourself and loadTopic() runs again.
+ */
+function appendIncomingMessage(reply) {
+    const isReply = reply.post_id !== undefined && reply.post_id !== null;
+
+    if (isReply) {
+        const replyStack = document.getElementById(`reply-stack-${reply.post_id}`);
+        if (!replyStack) return; // parent post isn't loaded/visible right now
+        if (document.getElementById(`reply-${reply.reply_id}`)) return; // already have it
+
+        const newReplyHtml = `
+            <div class="reply-row" id="reply-${reply.reply_id}" style="margin-bottom:8px; padding: 6px; background: rgba(0,0,0,0.02); border-radius: 4px;">
+                <strong>${authorLink(reply.author)}</strong>
+                <span class="muted">${new Date(reply.replied_at || reply.created_at).toLocaleString()}</span>
+                ${reply.is_flagged ? '<span class="flag" style="color: #dc2626; font-weight: bold;"> · flagged</span>' : ''}
+                <div>${reply.content}</div>
+            </div>
+        `;
+        replyStack.insertAdjacentHTML('beforeend', newReplyHtml);
+        return;
+    }
+
+    const postsContainer = document.getElementById('posts');
+    if (!postsContainer) return;
+    if (document.getElementById(`post-card-${reply.post_id || reply.id}`)) return; // already have it
+
+    if (postsContainer.querySelector('.muted') && postsContainer.children.length === 1) {
+        postsContainer.innerHTML = '';
+    }
+
+    const targetPostId = reply.post_id || reply.id;
+    const newPostHtml = `
+        <div class="card" id="post-card-${targetPostId}" style="margin-bottom: 24px; padding: 16px;">
+            <strong>${authorLink(reply.author)}</strong>
+            <span class="muted">${new Date(reply.posted_at || reply.created_at).toLocaleString()}</span>
+            ${reply.is_flagged ? '<span class="flag" style="color: #dc2626; font-weight: bold;"> · flagged</span>' : ''}
+            <p style="margin: 12px 0;">${reply.content}</p>
+            <div style="margin-bottom: 12px;">
+                <button class="btn secondary" onclick="shareToSocial(${targetPostId}, 'Clipboard')">Forward</button>
+                <button class="btn secondary" onclick="flagPost(${targetPostId})">Flag</button>
+            </div>
+            <div style="margin-top:10px; padding-left:16px; border-left: 2px solid #d8d2c4;">
+                <div id="reply-stack-${targetPostId}"></div>
+                <form onsubmit="return submitReply(event, ${targetPostId})" style="margin-top: 12px; display: flex; gap: 8px;">
+                    <input type="text" id="reply-input-${targetPostId}" placeholder="Reply…" style="flex: 1; padding: 6px;" required>
+                    <button class="btn secondary" type="submit">Reply</button>
+                </form>
+            </div>
+        </div>
+    `;
+    postsContainer.insertAdjacentHTML('beforeend', newPostHtml);
+    postsContainer.scrollTop = postsContainer.scrollHeight;
+}
+
+/**
+ * Joins the topic's presence channel exactly once and registers the
+ * .MessageBroadcast listener - this is the piece that was missing before,
+ * which is why nothing ever arrived live.
+ */
+function subscribeToTopic() {
+    if (subscribed) return;
+    if (!topicId || typeof window.Echo === 'undefined' || !window.Echo) return;
+
+    subscribed = true;
+    console.log("Subscribing to topic channel:", topicId);
+
+    try {
+        window.Echo.join(`topic.${topicId}`)
+            .here((users) => { console.log('Connected to topic! Online users:', users); })
+            .joining((user) => { console.log(user.full_name + ' joined'); })
+            .leaving((user) => { console.log(user.full_name + ' left'); })
+            .listen('.MessageBroadcast', (e) => {
+                console.log("WebSocket event payload received:", e);
+
+                if (Array.isArray(e.excluded_user_ids) && e.excluded_user_ids.includes(currentUserId)) {
+                    return;
+                }
+
+                appendIncomingMessage(e.reply);
+            });
+    } catch (error) {
+        console.error("Echo join operation failed with error:", error);
+    }
+}
 
 async function submitReply(e, postId) {
     e.preventDefault();
     const input = document.getElementById(`reply-input-${postId}`);
     if (!input || !input.value.trim()) return false;
 
-    await executeApiCall(`/posts/${postId}/replies`, { 
-        method: 'POST', 
-    loadTopic();
+    await executeApiCall(`/posts/${postId}/replies`, {
+        method: 'POST',
+        body: { content: input.value },
+    });
+    input.value = '';
     return false;
 }
 
-async function shareToSocial(postId) {
-    await api(`/posts/${postId}/share`, { method: 'POST', body: { platform: 'Clipboard' } });
-    alert('Link copied and share logged.');
-}
-
 async function flagPost(postId) {
-}
+    await executeApiCall(`/posts/${postId}/flag`, { method: 'POST', body: { flagged: true } });
     loadTopic();
 }
 
-document.getElementById('postForm').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const excludeRaw = document.getElementById('excludeIds').value.trim();
-    const exclude_user_ids = excludeRaw ? excludeRaw.split(',').map(s => parseInt(s.trim())) : [];
-
-    const excludeRaw = document.getElementById('excludeIds').value.trim();
-        method: 'POST',
-        body: { content: document.getElementById('postContent').value, exclude_user_ids },
-    });
-    e.target.reset();
-    loadTopic();
-});
-
-/* ---------------- Profile popup ---------------- */
 async function shareToSocial(postId, platform) {
     const res = await executeApiCall(`/posts/${postId}/share`, { method: 'POST', body: { platform } });
     document.querySelectorAll('.share-menu.open').forEach(m => m.classList.remove('open'));
@@ -301,16 +260,17 @@ async function shareToSocial(postId, platform) {
     }
 
     const shareUrl = res.shared_url || `${window.location.origin}/topics/${topicId}#post-${postId}`;
-    }
-
-    const shareUrl = res.shared_url || `${window.location.origin}/topics/${topicId}#post-${postId}`;
     try {
         await navigator.clipboard.writeText(shareUrl);
         alert('Link copied to clipboard.');
     } catch (err) {
         alert(`Copy this link: ${shareUrl}`);
-async function viewProfile(userId) {
+    }
 }
+
+/* ---------------- Profile popup ---------------- */
+async function viewProfile(userId) {
+    const profile = await executeApiCall(`/users/${userId}`);
     if (!profile) return;
 
     document.getElementById('modalName').textContent = profile.full_name;
@@ -344,33 +304,21 @@ function closeProfileModal() {
     document.getElementById('profileModal').style.display = 'none';
 }
 
-window.downloadPDF = async function() {
+window.downloadPDF = async function () {
     try {
         const targetUrl = window.location.origin + `/api/topics/${topicId}/export`;
-        
-        // Grab the correct token name used by your Smart Discussion Forum login system
         const token = localStorage.getItem('sdf_token');
+        const headers = { 'Accept': 'application/pdf' };
+        if (token) headers['Authorization'] = `Bearer ${token}`;
 
-        const headers = {
-            'Accept': 'application/pdf'
-        };
-
-        if (token) {
-            headers['Authorization'] = `Bearer ${token}`;
-        }
-
-        const response = await fetch(targetUrl, {
-            method: 'GET',
-            headers: headers
-        });
+        const response = await fetch(targetUrl, { method: 'GET', headers });
 
         if (!response.ok) {
-            const errBody = await response.text();
+            await response.text();
             throw new Error(`Server returned status ${response.status}`);
         }
 
         const pdfBlob = await response.blob();
-        
         if (pdfBlob.size === 0) {
             throw new Error("The server generated an empty stream.");
         }
@@ -380,20 +328,37 @@ window.downloadPDF = async function() {
         downloadLink.style.display = 'none';
         downloadLink.href = blobUrl;
         downloadLink.download = `topic-${topicId}.pdf`;
-        
+
         document.body.appendChild(downloadLink);
         downloadLink.click();
-        
+
         setTimeout(() => {
             downloadLink.remove();
             window.URL.revokeObjectURL(blobUrl);
         }, 150);
-
     } catch (err) {
         console.error('PDF Export Breakdown:', err);
         alert(`Failed to export PDF: ${err.message}`);
     }
-}
-  
+};
+
+document.getElementById('postForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const excludeRaw = document.getElementById('excludeIds').value.trim();
+    const exclude_user_ids = excludeRaw ? excludeRaw.split(',').map(s => parseInt(s.trim())) : [];
+
+    await executeApiCall(`/topics/${topicId}/posts`, {
+        method: 'POST',
+        body: { content: document.getElementById('postContent').value, exclude_user_ids },
+    });
+    e.target.reset();
+    loadTopic();
+});
+
+document.addEventListener('DOMContentLoaded', async () => {
+    await loadCurrentUser();
+    await loadTopic();
+    subscribeToTopic();
+});
 </script>
 @endsection
