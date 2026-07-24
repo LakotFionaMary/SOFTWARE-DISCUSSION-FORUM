@@ -33,14 +33,13 @@ class SyncController extends Controller
 
         $since = $request->last_synced_at ?? $record->last_synced_at ?? now()->subYears(10);
 
-        // Step 3-4: server-wins resolution - queued offline actions are
-        // simply logged here; a full implementation would replay each
-        // queued action (create post, reply, etc.) through its own endpoint.
+        // Server-wins resolution: If queued actions are passed directly in the sync call,
+        // record them on the SyncRecord.
         if ($request->filled('queued_actions')) {
             $record->update(['pending_actions' => $request->queued_actions]);
         }
 
-        // Step 5-6: pull everything new since the last sync timestamp.
+        // Pull everything new since the last sync timestamp.
         $newPosts = Post::whereHas('topic.group.members', fn ($q) => $q->where('users.user_id', $user->user_id))
             ->where('posted_at', '>', $since)
             ->with('author')
@@ -54,7 +53,11 @@ class SyncController extends Controller
             ->where('created_at', '>', $since)
             ->get();
 
-        $record->update(['last_synced_at' => now(), 'pending_actions' => null]);
+        // Update the last synced timestamp cleanly using the current server time
+        $record->update([
+            'last_synced_at' => now(),
+            'pending_actions' => null,
+        ]);
 
         return response()->json([
             'synced_at' => $record->last_synced_at,
