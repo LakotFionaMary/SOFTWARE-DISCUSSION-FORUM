@@ -15,7 +15,7 @@ class Post extends Model
     protected $table = 'posts';
     protected $primaryKey = 'post_id';
 
-    protected $fillable = ['topic_id', 'author_id', 'content', 'attachment_url', 'posted_at', 'is_flagged'];
+    protected $fillable = ['topic_id', 'author_id', 'content', 'attachment_url', 'client_uuid', 'posted_at', 'is_flagged'];
 
     protected $casts = ['posted_at' => 'datetime', 'is_flagged' => 'boolean'];
 
