@@ -98,7 +98,7 @@ class PostController extends Controller
         // synchronously right here, so a connection failure needs to be
         // swallowed rather than bubbling up and aborting everything above.
         try {
-            broadcast(new MessageBroadcast($post, $post->topic_id));
+            broadcast(new MessageBroadcast($post->topic_id, $post));
         } catch (\Throwable $e) {
             report($e);
         }
