@@ -41,6 +41,11 @@ RUN chown -R www-data:www-data storage bootstrap/cache \
 ENV COMPOSER_ALLOW_SUPERUSER=1
 RUN composer install --no-interaction --optimize-autoloader --no-dev
 
+ENV COMPOSER_ALLOW_SUPERUSER=1
+ENV PYTHONUNBUFFERED=1
+ENV ML_SERVICE_URL="http://127.0.0.1:5001"
+RUN composer install --no-interaction --optimize-autoloader --no-dev
+
 # =========================================================
 # 1. Accept Build Arguments from Railway
 # =========================================================
