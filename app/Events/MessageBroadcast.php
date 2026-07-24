@@ -87,6 +87,7 @@ class MessageBroadcast implements ShouldBroadcast
         return [
             'reply' => $this->reply,
             'excluded_user_ids' => $this->excludedUserIds,
+            'topicId' => $this->topicId,
         ];
     }
 }
