@@ -58,9 +58,13 @@ class TopicClassifierService
     public function classify(string $title): string
     {
         try {
+            $apiKey = config('services.ml.api_key') 
+                ?? env('ML_API_KEY') 
+                ?? env('ML_SERVICE_API_KEY', 'dev-key-change-me');
+
             $response = Http::timeout(3)
                 ->withHeaders([
-                    'X-API-KEY' => config('services.ml.api_key'),
+                    'X-API-KEY' => $apiKey,
                 ])
                 ->post(self::ML_SERVICE_URL . '/classify', [
                     'text' => $title,
