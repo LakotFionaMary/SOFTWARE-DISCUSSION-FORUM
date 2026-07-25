@@ -14,12 +14,11 @@ return [
     |
     */
 
-
-  'ml' => [
-    'url'     => env('ML_SERVICE_URL', 'http://127.0.0.1:5001'),
-    'key'     => env('ML_SERVICE_API_KEY'),
-    'api_key' => env('ML_SERVICE_API_KEY'), // both services point at the same secret now
-],
+    'ml' => [
+        'url'     => env('ML_SERVICE_URL', 'http://127.0.0.1:5001'),
+        'key'     => env('ML_API_KEY', env('ML_SERVICE_API_KEY', 'dev-key-change-me')),
+        'api_key' => env('ML_API_KEY', env('ML_SERVICE_API_KEY', 'dev-key-change-me')),
+    ],
 
     'postmark' => [
         'key' => env('POSTMARK_API_KEY'),
@@ -41,9 +40,5 @@ return [
             'channel' => env('SLACK_BOT_USER_DEFAULT_CHANNEL'),
         ],
     ],
-'ml' => [
-    'url' => env('ML_SERVICE_URL', 'http://127.0.0.1:5001'),
-    'key' => env('ML_SERVICE_API_KEY'),
-   'api_key' => env('ML_API_KEY'),
-],
+
 ];
