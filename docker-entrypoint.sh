@@ -9,7 +9,7 @@ echo ">>> Running migrations..."
 php artisan migrate --force
 
 echo ">>> Starting ML service..."
-python3 ml_service/app.py &
+(cd ml_service && python3 app.py) &
 ML_PID=$!
 
 echo ">>> Waiting for ML service to come up..."
