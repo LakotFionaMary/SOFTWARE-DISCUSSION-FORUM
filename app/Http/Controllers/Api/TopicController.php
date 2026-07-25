@@ -117,4 +117,10 @@ class TopicController extends Controller
 
         return $pdf->download("topic-{$topic->topic_id}-{$topic->title}.pdf");
     }
+
+    /** Desktop client's PDF export endpoint. Same behavior as export(); kept as its own method name to match the /download-pdf route the desktop app calls. */
+    public function downloadPdf(Topic $topic)
+    {
+        return $this->export($topic);
+    }
 }
