@@ -11,7 +11,8 @@ load_dotenv()
 
 app = Flask(__name__)
 
-API_KEY = os.environ.get("ML_API_KEY", "dev-key-change-me")
+# Fall back to ML_SERVICE_API_KEY or default if ML_API_KEY is unset
+API_KEY = os.environ.get("ML_API_KEY") or os.environ.get("ML_SERVICE_API_KEY", "dev-key-change-me")
 
 # Dynamically resolve directory path relative to app.py
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -38,7 +39,7 @@ def classify():
     data = request.get_json(force=True)
     text = data.get("text", "").strip()
     if not text:
-        return jsonify({"category": "General"})
+        return jsonify({"category": "general_cs"})
 
     X = vectorizer.transform([text])
 
@@ -66,7 +67,7 @@ def classify():
             "message": "Input text has no overlap with the training vocabulary.",
         }), 422
 
-    return jsonify({"category": category, "confidence": round(float(proba), 3)})
+    return jsonify({"category": str(category), "confidence": round(float(proba), 3)})
 
 
 def _build_profile(history):
