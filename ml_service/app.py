@@ -13,8 +13,11 @@ app = Flask(__name__)
 
 API_KEY = os.environ.get("ML_API_KEY", "dev-key-change-me")
 
-classifier = joblib.load("models/classifier.pkl")
-vectorizer = joblib.load("models/vectorizer.pkl")
+# Dynamically resolve directory path relative to app.py
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+classifier = joblib.load(os.path.join(BASE_DIR, "models", "classifier.pkl"))
+vectorizer = joblib.load(os.path.join(BASE_DIR, "models", "vectorizer.pkl"))
 
 
 @app.before_request
@@ -139,12 +142,13 @@ def recommend():
 
 @app.route("/retrain", methods=["POST"])
 def retrain():
-    os.system("python3 train_classifier.py")
+    train_script = os.path.join(BASE_DIR, "train_classifier.py")
+    os.system(f"python3 {train_script}")
     global classifier, vectorizer
-    classifier = joblib.load("models/classifier.pkl")
-    vectorizer = joblib.load("models/vectorizer.pkl")
+    classifier = joblib.load(os.path.join(BASE_DIR, "models", "classifier.pkl"))
+    vectorizer = joblib.load(os.path.join(BASE_DIR, "models", "vectorizer.pkl"))
     return jsonify({"status": "retrained"})
 
 
 if __name__ == "__main__":
-    app.run(host="127.0.0.1", port=5001)
+    app.run(host="0.0.0.0", port=5001)
