@@ -65,6 +65,7 @@
         display: flex; flex-direction: column; gap: 4px;
         background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius);
         padding: 16px; min-height: 260px; flex: 1;
+         overflow-y: auto;
     }
     .msg-group { display: flex; flex-direction: column; margin: 10px 0; max-width: 78%; }
     .msg-group.mine { align-self: flex-end; align-items: flex-end; }
@@ -187,6 +188,51 @@
 
 <div class="dash-shell">
     <div class="dash-main">
+
+
+    <!-- ================= HOME ================= -->
+        <div class="dash-panel" id="panel-home">
+            <div class="card" style="background: var(--gradient-brand); border: none; color: #fff; padding: 32px 30px;">
+                <div class="card::before" style="display:none;"></div>
+                <h1 id="homeGreeting" style="margin:0 0 6px; font-size: 26px; font-family: var(--serif);">Welcome back!</h1>
+                <p style="margin:0; opacity:.9; font-size:14.5px;">Here's what's happening across your groups today.</p>
+            </div>
+
+            <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 14px; margin: 18px 0;">
+                <div class="card card-item" style="text-align:center;">
+                    <div style="font-size:26px; font-weight:800; color:var(--ink);" id="homeStatGroups">–</div>
+                    <div class="muted" style="font-size:12.5px;">Groups joined</div>
+                </div>
+                <div class="card card-item" style="text-align:center;">
+                    <div style="font-size:26px; font-weight:800; color:var(--ink);" id="homeStatQuizzes">–</div>
+                    <div class="muted" style="font-size:12.5px;">Open quizzes</div>
+                </div>
+                <div class="card card-item" style="text-align:center;">
+                    <div style="font-size:26px; font-weight:800; color:var(--ink);" id="homeStatNotifs">–</div>
+                    <div class="muted" style="font-size:12.5px;">Unread notifications</div>
+                </div>
+            </div>
+
+            <div class="section-title"><h2 style="margin:0;">Quick links</h2></div>
+            <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px;">
+                <a href="/dashboard?panel=panel-groups" class="card card-item" style="text-decoration:none; display:block;">
+                    <strong style="color:var(--ink);">👥 My Groups</strong>
+                    <div class="muted" style="font-size:12.5px; margin-top:4px;">Browse topics and discussions</div>
+                </a>
+                <a href="/dashboard?panel=panel-grades" class="card card-item" style="text-decoration:none; display:block;">
+                    <strong style="color:var(--ink);">🎓 My Grades</strong>
+                    <div class="muted" style="font-size:12.5px; margin-top:4px;">Check your participation & quiz scores</div>
+                </a>
+                <a href="/dashboard?panel=panel-quizzes" class="card card-item" style="text-decoration:none; display:block;">
+                    <strong style="color:var(--ink);">📝 Quizzes</strong>
+                    <div class="muted" style="font-size:12.5px; margin-top:4px;">See what's open right now</div>
+                </a>
+                <a href="/dashboard?panel=panel-recommendations" class="card card-item" style="text-decoration:none; display:block;">
+                    <strong style="color:var(--ink);">✨ Recommended</strong>
+                    <div class="muted" style="font-size:12.5px; margin-top:4px;">Trending topics picked for you</div>
+                </a>
+            </div>
+        </div>
         <!-- ================= GROUP ADMIN PANEL (students who admin a group) ================= -->
         <!-- Only reachable at all when the student is an active group admin for
              at least one group - see renderGroupAdminPanel(), which is what
@@ -976,10 +1022,10 @@ window.showNotMemberNotice = showNotMemberNotice;
                 </a>
             </div>
             </div>
-             <div id="joinRequests-${g.group_id}" class="muted" style="margin-top:12px; font-size:13px;">Loading join requests…</div>
+            <div id="joinRequests-${g.group_id}" class="muted" style="margin-top:12px; font-size:13px;">Loading join requests…</div>
            </div>
         `).join('');
-     adminGroups.forEach(g => loadJoinRequests(g.group_id,  g.name));
+        adminGroups.forEach(g => loadJoinRequests(g.group_id,  g.name));
     }
 
     
@@ -1046,7 +1092,6 @@ window.showNotMemberNotice = showNotMemberNotice;
     }
     window.resolveJoinRequest = resolveJoinRequest;
 
-    
     // ---- Topics list: search + category filter + pagination, mirroring
     // index.blade.php's loadTopics()/loadCategories(). ----
     async function loadBrowseTopics(reset = true) {
@@ -1575,6 +1620,7 @@ window.showNotMemberNotice = showNotMemberNotice;
         container.innerHTML = cards.join('') || '<div class="empty-state">No grades recorded yet.</div>';
     }
     
+
     let myAttemptsByQuiz = {};
     // Quiz ids we've already auto-launched a popup for this session, so we
     // don't keep re-opening the same window on every refresh.
@@ -1703,8 +1749,27 @@ window.prependLiveNotification = function (e) {
     renderNotifications();
 };
 
+   function renderHomePanel() {
+        const greeting = document.getElementById('homeGreeting');
+        if (greeting && window.CURRENT_USER) {
+            const firstName = (window.CURRENT_USER.full_name || 'there').split(' ')[0];
+            greeting.textContent = `Welcome back, ${firstName}!`;
+        }
+
+        const groupsCount = myGroups.filter(g => g.is_member || g.is_group_admin).length;
+        document.getElementById('homeStatGroups').textContent = groupsCount;
+
+        document.getElementById('homeStatNotifs').textContent =
+            currentNotifications.filter(n => !n.is_read).length;
+
+        api('/me/quizzes').then(quizzes => {
+            const openCount = (quizzes || []).filter(q => q.status === 'Open').length;
+            document.getElementById('homeStatQuizzes').textContent = openCount;
+        });
+    }
+
     async function init() {
-        initDashSidebar(document, 'panel-groups');
+        initDashSidebar(document, 'panel-home');
 
         const me = await loadCurrentUser();
         if (!me) return;
@@ -1720,6 +1785,7 @@ window.prependLiveNotification = function (e) {
         loadStudentQuizzes();
         loadRecommendations();
         loadNotifications();
+         renderHomePanel();
 
         handleIncomingShareLink(); // <-- add this, after loadGroups() so myGroups is populated
 
@@ -1736,3 +1802,4 @@ window.prependLiveNotification = function (e) {
     init();
 </script>
 @endsection
+
