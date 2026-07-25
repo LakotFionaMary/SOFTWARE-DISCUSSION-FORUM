@@ -304,6 +304,46 @@
 
 <div class="dash-shell">
     <div class="dash-main">
+
+    <!-- ================= HOME ================= -->
+        <div class="dash-panel" id="panel-home">
+            <div class="card" style="background: var(--gradient-brand); border: none; color: #fff; padding: 32px 30px;">
+                <h1 id="homeGreeting" style="margin:0 0 6px; font-size: 26px; font-family: var(--serif);">Welcome back!</h1>
+                <p style="margin:0; opacity:.9; font-size:14.5px;">Here's a snapshot of your groups and quizzes.</p>
+            </div>
+
+            <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 14px; margin: 18px 0;">
+                <div class="card card-item" style="text-align:center;">
+                    <div style="font-size:26px; font-weight:800; color:var(--ink);" id="homeStatGroups">–</div>
+                    <div class="muted" style="font-size:12.5px;">Groups you manage</div>
+                </div>
+                <div class="card card-item" style="text-align:center;">
+                    <div style="font-size:26px; font-weight:800; color:var(--ink);" id="homeStatQuizzes">–</div>
+                    <div class="muted" style="font-size:12.5px;">Your quizzes</div>
+                </div>
+                <div class="card card-item" style="text-align:center;">
+                    <div style="font-size:26px; font-weight:800; color:var(--ink);" id="homeStatNotifs">–</div>
+                    <div class="muted" style="font-size:12.5px;">Unread notifications</div>
+                </div>
+            </div>
+
+            <div class="section-title"><h2 style="margin:0;">Quick links</h2></div>
+            <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px;">
+                <a href="/dashboard?panel=panel-groups" class="card card-item" style="text-decoration:none; display:block;">
+                    <strong style="color:var(--ink);">👥 Groups</strong>
+                    <div class="muted" style="font-size:12.5px; margin-top:4px;">Manage groups & join requests</div>
+                </a>
+                <a href="/dashboard?panel=panel-quizzes" class="card card-item" style="text-decoration:none; display:block;">
+                    <strong style="color:var(--ink);">📝 Quizzes</strong>
+                    <div class="muted" style="font-size:12.5px; margin-top:4px;">Create and review quizzes</div>
+                </a>
+                <a href="/dashboard?panel=panel-criteria" class="card card-item" style="text-decoration:none; display:block;">
+                    <strong style="color:var(--ink);">📊 Scoring Criteria</strong>
+                    <div class="muted" style="font-size:12.5px; margin-top:4px;">Set grading rules per group</div>
+                </a>
+            </div>
+        </div>
+
         <!-- ================= MY GROUPS ================= -->
         <div class="dash-panel" id="panel-groups">
             
@@ -695,34 +735,7 @@
         await loadGroups();
     }
     window.joinGroupInline = joinGroupInline;
-
-    function renderGroupAdminPanel(groups) {
-        const adminGroups = groups.filter(g =>g.admin_id == window.CURRENT_USER.user_id);
-        const tab = document.getElementById('navGroupAdmin');
-
-        if (tab) tab.style.display = adminGroups.length ? 'flex' : 'none';
-
-        document.getElementById('groupAdminList').innerHTML = adminGroups.map(g => `
-           <div class="card" style="padding: 16px;">
-            <div style="display: flex; justify-content: space-between; align-items: center;">
-                <div>
-                    <strong style="font-size: 16px; display: block; margin-bottom: 4px;">${g.name}</strong>
-                    <div class="muted">${g.members_count ?? 0} members · ${g.topics_count ?? 0} topics</div>
-                </div>
-                <div style="display: flex; gap: 8px;">
-                    <a class="btn btn-secondary" href="/groups/${g.group_id}/statistics" style="padding: 6px 12px; font-size: 13px; white-space: nowrap;">
-                        View group statistics
-                    </a>
-                </div>
-            </div>
-            <div id="joinRequests-${g.group_id}" class="muted" style="margin-top:12px; font-size:13px;">Loading join requests…</div>
-           </div>
-        `).join('');
-
-        adminGroups.forEach(g => loadJoinRequests(g.group_id));
-    }
-
-       
+ 
 
     // A small fixed palette of gradient pairs so each requester's avatar
     // gets a distinct, cheerful color instead of every avatar looking the
@@ -825,6 +838,8 @@
             loadGroupMembersForExclusion();
         } else {
             el.innerHTML = groupsViewHtml();
+            myGroups.filter(g => g.admin_id === (window.CURRENT_USER ? window.CURRENT_USER.user_id : null) || g.is_group_admin)
+                .forEach(g => loadJoinRequests(g.group_id, g.name));
         }
     }
 
@@ -833,6 +848,7 @@
             const joined = g.is_member || g.is_group_admin || g.admin_id === (window.CURRENT_USER ? window.CURRENT_USER.user_id : null);
             const isBanned = g.is_banned || g.banned;
             const isOwner = g.admin_id === (window.CURRENT_USER ? window.CURRENT_USER.user_id : null);
+            const canManage = isOwner || g.is_group_admin;
 
             const clickHandler = isBanned
                 ? `alert('You are blacklisted/banned from this group.')`
@@ -864,11 +880,12 @@
                             <div class="group-subtext">
                                 ${g.description ?? ''} ${g.description ? '· ' : ''}${g.members_count ?? 0} members · ${g.topics_count ?? 0} topics
                             </div>
-                            ${!isBanned && !joined ? `
+                           ${!isBanned && !joined ? `
                                 <div id="notMemberNotice-${g.group_id}" style="display:none; color:#b45309; font-weight:600; margin-top:4px; font-size:12.5px;">
                                     You're not a member of this group yet — join to view topics.
                                 </div>
                             ` : ''}
+                            ${canManage ? `<div id="joinRequests-${g.group_id}" class="muted" style="margin-top:10px; font-size:13px;" onclick="event.stopPropagation()">Loading join requests…</div>` : ''}
                         </div>
                         <div class="group-actions">
                             ${actionButtonsHtml}
@@ -1987,17 +2004,36 @@ window.prependLiveNotification = function (e) {
     });
     renderNotifications();
 };
-    async function init() {
-        initDashSidebar(document, 'panel-groups');
+   async function init() {
+        initDashSidebar(document, 'panel-home');
         await loadWelcome();
         await loadGroups();
         loadLecturerQuizzes();
         loadNotifications();
-        handleIncomingShareLink(); // <-- add this, after loadGroups() so myGroups is populated
-
+        handleIncomingShareLink();
+        renderHomePanel();
     }
 
+    function renderHomePanel() {
+        const greeting = document.getElementById('homeGreeting');
+        if (greeting && window.CURRENT_USER) {
+            const firstName = (window.CURRENT_USER.full_name || 'there').split(' ')[0];
+            greeting.textContent = `Welcome back, ${firstName}!`;
+        }
+
+        const managedCount = myGroups.filter(g =>
+            g.admin_id === (window.CURRENT_USER ? window.CURRENT_USER.user_id : null) || g.is_group_admin
+        ).length;
+        document.getElementById('homeStatGroups').textContent = managedCount;
+
+        document.getElementById('homeStatNotifs').textContent =
+            currentNotifications.filter(n => !n.is_read).length;
+
+        api('/me/quizzes').then(quizzes => {
+            document.getElementById('homeStatQuizzes').textContent = (quizzes || []).length;
+        });
+    }
+    
     init();
 </script>
 @endsection
-
